@@ -475,6 +475,7 @@ function Dashboard() {
     const [showAssistant, setShowAssistant] = useState(false);
     const [showProfile, setShowProfile] = useState(false);
     const [showAdd, setShowAdd] = useState(false);
+    const [showScanner, setShowScanner] = useState(false);
     const fontFamily = isTe ? "'Noto Sans Telugu','Instrument Sans',sans-serif" : "'Instrument Sans',sans-serif";
 
     const filtered = records.filter(r => {
@@ -496,6 +497,7 @@ function Dashboard() {
         <div style={{ minHeight: "100vh", background: "#EDE8DC", display: "flex", flexDirection: "column" }}>
             {showAssistant && <TeluguAssistant onClose={() => setShowAssistant(false)} />}
             {showAdd && <AddRecordModal onClose={() => setShowAdd(false)} isTe={isTe} t={t} />}
+            {showScanner && <LandScanner onClose={() => setShowScanner(false)} />}
             <nav style={{ background: "var(--forest)", height: 60, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 22px", boxShadow: "0 2px 16px rgba(0,0,0,.2)", position: "sticky", top: 0, zIndex: 100 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                     <div style={{ width: 32, height: 32, background: "var(--gold)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17 }}>🗺</div>
@@ -508,6 +510,7 @@ function Dashboard() {
                         <button onClick={() => setLang("en")} style={{ background: lang === "en" ? "var(--gold)" : "rgba(255,255,255,.1)", border: "none", color: "white", padding: "5px 10px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontWeight: 600 }}>EN</button>
                         <button onClick={() => setLang("te")} style={{ background: lang === "te" ? "var(--gold)" : "rgba(255,255,255,.1)", border: "none", color: "white", padding: "5px 10px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontWeight: 600, fontFamily: "'Noto Sans Telugu',sans-serif" }}>తె</button>
                     </div>
+                    <button onClick={() => setShowScanner(true)} style={{ background: "rgba(255,255,255,.1)", border: "1px solid rgba(255,255,255,.2)", borderRadius: 8, padding: "6px 10px", cursor: "pointer", color: "white", fontSize: 12, fontFamily }}>📍 {isTe ? "భూమి స్కాన్" : "Field Scan"}</button>
                     <button onClick={() => setShowAssistant(true)} style={{ background: "rgba(255,255,255,.1)", border: "1px solid rgba(255,255,255,.2)", borderRadius: 8, padding: "6px 10px", cursor: "pointer", color: "white", fontSize: 12, fontFamily }}>🤖 {isTe ? "సహాయం" : "Help"}</button>
                     <button onClick={() => setShowProfile(!showProfile)} style={{ display: "flex", alignItems: "center", gap: 7, background: "rgba(255,255,255,.1)", border: "1px solid rgba(255,255,255,.2)", borderRadius: 10, padding: "5px 10px", cursor: "pointer" }}>
                         <div style={{ width: 26, height: 26, background: "var(--gmd)", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13 }}>{user?.roleIcon}</div>
@@ -827,6 +830,385 @@ function AddRecordModal({ onClose, isTe, t }) {
                                 </button>
                             </div>
                         </>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+
+// ═══════════════════════════════════════════
+// LAND SCANNER / FIELD VISIT SCREEN
+// ═══════════════════════════════════════════
+function LandScanner({ onClose }) {
+    const { t, isTe, lang } = useLang();
+    const [step, setStep] = useState("search"); // search | loading | result | notfound
+    const [searchType, setSearchType] = useState("survey"); // survey | gps
+    const [surveyInput, setSurveyInput] = useState("");
+    const [villageInput, setVillageInput] = useState("");
+    const [result, setResult] = useState(null);
+    const [locating, setLocating] = useState(false);
+    const fontFamily = isTe ? "'Noto Sans Telugu','Instrument Sans',sans-serif" : "'Instrument Sans',sans-serif";
+
+    // Demo land records database
+    const LAND_DB = [
+        {
+            surveyNumber: "441/2A", village: "Nellore", mandal: "Kovur", district: "SPSR Nellore", state: "Andhra Pradesh",
+            ownerName: "Ravi Kumar Reddy", extentAcres: 2.50, extentGuntas: 20, extentCents: 250,
+            landType: "Agricultural", classification: "Wet Land", soilType: "Black Cotton Soil",
+            waterSource: "Canal Irrigation", cropGrown: "Paddy", marketValue: "₹45,00,000",
+            riskLevel: "Low", riskScore: 12,
+            boundaries: { north: "Survey 441/1 - Gopal Rao", south: "Canal Road", east: "Survey 442 - Suresh", west: "Village Road" },
+            previousOwners: ["Gopal Rao (1985-2001)", "Suresh Rao (2001-2015)", "Ravi Kumar Reddy (2015-Now)"],
+            ecStatus: "Clear — No encumbrances", bankLoan: "No loan", courtCase: "No disputes",
+            latitude: 14.4426, longitude: 79.9865
+        },
+        {
+            surveyNumber: "SY-2023-045", village: "Vijayawada", mandal: "Krishna", district: "Krishna", state: "Andhra Pradesh",
+            ownerName: "Lakshmi Devi", extentAcres: 1.20, extentGuntas: 9, extentCents: 120,
+            landType: "Residential Plot", classification: "Dry Land", soilType: "Red Soil",
+            waterSource: "Borewell", cropGrown: "None", marketValue: "₹85,00,000",
+            riskLevel: "High", riskScore: 78,
+            boundaries: { north: "Road", south: "Survey 046 - Unknown", east: "Building", west: "Survey 044" },
+            previousOwners: ["Ramaiah (1990-2005)", "UNKNOWN (2005-2012)", "Lakshmi Devi (2012-Now)"],
+            ecStatus: "⚠ Gap found 2005-2012", bankLoan: "⚠ Mortgage exists — SBI Bank", courtCase: "⚠ Dispute pending",
+            latitude: 16.5062, longitude: 80.6480
+        },
+        {
+            surveyNumber: "SY-2022-112", village: "Guntur", mandal: "Tenali", district: "Guntur", state: "Andhra Pradesh",
+            ownerName: "Venkata Subba Rao", extentAcres: 3.75, extentGuntas: 30, extentCents: 375,
+            landType: "Agricultural", classification: "Wet Land", soilType: "Alluvial Soil",
+            waterSource: "Canal + Borewell", cropGrown: "Cotton, Chilli", marketValue: "₹62,00,000",
+            riskLevel: "Medium", riskScore: 44,
+            boundaries: { north: "Survey 111 - Hanumaiah", south: "Survey 113 - Raju", east: "Canal", west: "Village Path" },
+            previousOwners: ["Hanumaiah (1978-1999)", "Venkata Subba Rao (1999-Now)"],
+            ecStatus: "Clear", bankLoan: "No loan", courtCase: "Minor boundary dispute",
+            latitude: 16.2160, longitude: 80.3573
+        },
+    ];
+
+    const searchBysurvey = () => {
+        if (!surveyInput.trim() && !villageInput.trim()) return;
+        setStep("loading");
+        setTimeout(() => {
+            const found = LAND_DB.find(r =>
+                r.surveyNumber.toLowerCase().includes(surveyInput.toLowerCase()) ||
+                r.village.toLowerCase().includes(villageInput.toLowerCase())
+            );
+            if (found) { setResult(found); setStep("result"); }
+            else setStep("notfound");
+        }, 1500);
+    };
+
+    const getGPSLocation = () => {
+        setLocating(true);
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    setLocating(false);
+                    setStep("loading");
+                    setTimeout(() => {
+                        // Find nearest demo record
+                        const nearest = LAND_DB[0];
+                        setResult(nearest);
+                        setStep("result");
+                    }, 2000);
+                },
+                () => {
+                    setLocating(false);
+                    // Use demo data if GPS fails
+                    setStep("loading");
+                    setTimeout(() => { setResult(LAND_DB[0]); setStep("result"); }, 1500);
+                }
+            );
+        } else {
+            setLocating(false);
+            setResult(LAND_DB[0]);
+            setStep("result");
+        }
+    };
+
+    const RISK_COLOR = { Low: "#2D7A3A", Medium: "#C8760C", High: "#C0392B" };
+    const RISK_BG = { Low: "#E8F5E9", Medium: "#FFF3E0", High: "#FFEBEE" };
+    const RISK_LABEL = {
+        en: { Low: "LOW RISK", Medium: "MEDIUM RISK", High: "HIGH RISK" },
+        te: { Low: "తక్కువ ప్రమాదం", Medium: "మధ్యస్థ ప్రమాదం", High: "అధిక ప్రమాదం" }
+    };
+
+    return (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(28,58,18,.7)", backdropFilter: "blur(6px)", zIndex: 1000, display: "flex", alignItems: "flex-end", justifyContent: "center", padding: 16 }}>
+            <div style={{ background: "var(--cream)", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 520, maxHeight: "92vh", overflowY: "auto", boxShadow: "0 -8px 48px rgba(0,0,0,.3)", animation: "fadeUp .3s ease" }}>
+
+                {/* Header */}
+                <div style={{ background: "var(--forest)", borderRadius: "20px 20px 0 0", padding: "16px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 10 }}>
+                    <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                        <div style={{ width: 40, height: 40, background: "var(--gold)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>📍</div>
+                        <div>
+                            <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, color: "white", fontSize: 16 }}>
+                                {isTe ? "భూమి వివరాలు చూడండి" : "Land Field Scanner"}
+                            </div>
+                            <div style={{ fontSize: 11, color: "rgba(255,255,255,.5)" }}>
+                                {isTe ? "సర్వే నంబర్ లేదా GPS ద్వారా" : "Search by Survey No. or GPS"}
+                            </div>
+                        </div>
+                    </div>
+                    <button onClick={onClose} style={{ background: "rgba(255,255,255,.15)", border: "none", color: "white", width: 32, height: 32, borderRadius: "50%", cursor: "pointer", fontSize: 18 }}>×</button>
+                </div>
+
+                <div style={{ padding: "20px 16px 32px" }}>
+
+                    {/* SEARCH STEP */}
+                    {step === "search" && (
+                        <div style={{ animation: "fadeUp .3s ease" }}>
+                            {/* Search type toggle */}
+                            <div style={{ display: "flex", gap: 8, marginBottom: 20, background: "var(--paper)", borderRadius: 12, padding: 4 }}>
+                                {[["survey", isTe ? "సర్వే నంబర్" : "Survey Number", "🔢"], ["gps", isTe ? "GPS లొకేషన్" : "GPS Location", "📡"]].map(([type, label, icon]) => (
+                                    <button key={type} onClick={() => setSearchType(type)}
+                                        style={{ flex: 1, background: searchType === type ? "var(--forest)" : "transparent", color: searchType === type ? "white" : "var(--muted)", border: "none", borderRadius: 9, padding: "10px", cursor: "pointer", fontWeight: 600, fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, transition: "all .2s", fontFamily }}>
+                                        {icon} {label}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {searchType === "survey" ? (
+                                <>
+                                    <div style={{ marginBottom: 12 }}>
+                                        <label style={{ fontSize: 11, fontWeight: 700, color: "var(--muted)", letterSpacing: .6, display: "block", marginBottom: 6, textTransform: "uppercase", fontFamily }}>
+                                            {isTe ? "సర్వే నంబర్" : "Survey Number"}
+                                        </label>
+                                        <input value={surveyInput} onChange={e => setSurveyInput(e.target.value)}
+                                            placeholder={isTe ? "ఉదా: 441/2A" : "e.g. 441/2A or SY-2024-001"}
+                                            style={{ width: "100%", padding: "12px 14px", border: "1.5px solid var(--border)", borderRadius: 10, fontSize: 15, background: "white", outline: "none", fontFamily, color: "var(--ink)" }}
+                                            onFocus={e => e.target.style.borderColor = "var(--gmd)"} onBlur={e => e.target.style.borderColor = "var(--border)"} />
+                                    </div>
+                                    <div style={{ marginBottom: 16, textAlign: "center", color: "var(--muted)", fontSize: 12, fontFamily }}>{isTe ? "లేదా" : "OR"}</div>
+                                    <div style={{ marginBottom: 20 }}>
+                                        <label style={{ fontSize: 11, fontWeight: 700, color: "var(--muted)", letterSpacing: .6, display: "block", marginBottom: 6, textTransform: "uppercase", fontFamily }}>
+                                            {isTe ? "గ్రామం పేరు" : "Village Name"}
+                                        </label>
+                                        <input value={villageInput} onChange={e => setVillageInput(e.target.value)}
+                                            placeholder={isTe ? "ఉదా: నెల్లూరు, విజయవాడ" : "e.g. Nellore, Guntur"}
+                                            style={{ width: "100%", padding: "12px 14px", border: "1.5px solid var(--border)", borderRadius: 10, fontSize: 15, background: "white", outline: "none", fontFamily, color: "var(--ink)" }}
+                                            onFocus={e => e.target.style.borderColor = "var(--gmd)"} onBlur={e => e.target.style.borderColor = "var(--border)"} />
+                                    </div>
+                                    <button onClick={searchBysurvey} disabled={!surveyInput && !villageInput}
+                                        style={{ width: "100%", background: "var(--forest)", color: "white", border: "none", padding: "14px", borderRadius: 12, fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily, opacity: (!surveyInput && !villageInput) ? .5 : 1 }}>
+                                        🔍 {isTe ? "వివరాలు చూడండి" : "Search Land Details"}
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <div style={{ background: "var(--ok-bg)", border: "1px solid #A5D6A7", borderRadius: 12, padding: "20px", textAlign: "center", marginBottom: 20 }}>
+                                        <div style={{ fontSize: 48, marginBottom: 12 }}>📡</div>
+                                        <div style={{ fontWeight: 700, fontSize: 15, color: "var(--forest)", marginBottom: 6, fontFamily }}>
+                                            {isTe ? "మీరు నిలబడిన చోట భూమి వివరాలు" : "Land details where you are standing"}
+                                        </div>
+                                        <div style={{ fontSize: 12, color: "var(--muted)", fontFamily }}>
+                                            {isTe ? "GPS మీ స్థానం గుర్తించి దగ్గరలో ఉన్న భూమి చూపిస్తుంది" : "GPS will detect your location and show nearby land"}
+                                        </div>
+                                    </div>
+                                    <button onClick={getGPSLocation} disabled={locating}
+                                        style={{ width: "100%", background: "var(--gold)", color: "white", border: "none", padding: "14px", borderRadius: 12, fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily, display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
+                                        {locating ? <><div style={{ width: 20, height: 20, border: "2px solid rgba(255,255,255,.3)", borderTop: "2px solid white", borderRadius: "50%", animation: "spin .7s linear infinite" }} />{isTe ? "స్థానం గుర్తిస్తున్నది..." : "Detecting location..."}</> : <>📍 {isTe ? "నా స్థానం ఉపయోగించండి" : "Use My GPS Location"}</>}
+                                    </button>
+                                </>
+                            )}
+
+                            {/* Demo hint */}
+                            <div style={{ marginTop: 16, background: "var(--warn-bg)", borderRadius: 10, padding: "10px 14px", border: "1px solid #FFE082" }}>
+                                <div style={{ fontSize: 11, color: "#795548", fontFamily }}>
+                                    💡 {isTe ? "డెమో కోసం ఇవి try చేయండి: 441/2A, Nellore, Vijayawada, Guntur" : "Try these for demo: 441/2A, Nellore, Vijayawada, Guntur"}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* LOADING STEP */}
+                    {step === "loading" && (
+                        <div style={{ textAlign: "center", padding: "40px 20px", animation: "fadeUp .3s ease" }}>
+                            <div style={{ width: 60, height: 60, border: "4px solid var(--paper)", borderTop: "4px solid var(--forest)", borderRadius: "50%", animation: "spin .8s linear infinite", margin: "0 auto 20px" }} />
+                            <div style={{ fontWeight: 700, fontSize: 16, color: "var(--forest)", fontFamily, marginBottom: 8 }}>
+                                {isTe ? "భూమి వివరాలు తీసుకుంటున్నది..." : "Fetching land details..."}
+                            </div>
+                            <div style={{ fontSize: 13, color: "var(--muted)", fontFamily }}>
+                                {isTe ? "ప్రభుత్వ రికార్డులు తనిఖీ చేస్తున్నది" : "Checking government records"}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* NOT FOUND */}
+                    {step === "notfound" && (
+                        <div style={{ textAlign: "center", padding: "32px 20px", animation: "fadeUp .3s ease" }}>
+                            <div style={{ fontSize: 52, marginBottom: 12 }}>🔍</div>
+                            <div style={{ fontWeight: 700, fontSize: 16, color: "var(--err)", fontFamily, marginBottom: 8 }}>
+                                {isTe ? "రికార్డు కనుగొనబడలేదు" : "Record Not Found"}
+                            </div>
+                            <div style={{ fontSize: 13, color: "var(--muted)", fontFamily, marginBottom: 20 }}>
+                                {isTe ? "ఈ సర్వే నంబర్ మా డేటాబేస్లో లేదు" : "This survey number is not in our database yet"}
+                            </div>
+                            <button onClick={() => { setStep("search"); setSurveyInput(""); setVillageInput(""); }}
+                                style={{ background: "var(--forest)", color: "white", border: "none", padding: "12px 24px", borderRadius: 10, fontWeight: 600, cursor: "pointer", fontFamily }}>
+                                {isTe ? "మళ్ళీ వెతకండి" : "Search Again"}
+                            </button>
+                        </div>
+                    )}
+
+                    {/* RESULT STEP */}
+                    {step === "result" && result && (
+                        <div style={{ animation: "fadeUp .3s ease" }}>
+
+                            {/* Risk badge */}
+                            <div style={{ background: RISK_BG[result.riskLevel], border: `2px solid ${RISK_COLOR[result.riskLevel]}`, borderRadius: 14, padding: "14px 16px", marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                <div>
+                                    <div style={{ fontSize: 11, fontWeight: 700, color: RISK_COLOR[result.riskLevel], letterSpacing: 1, fontFamily }}>
+                                        {RISK_LABEL[lang]?.[result.riskLevel] || result.riskLevel}
+                                    </div>
+                                    <div style={{ fontSize: 22, fontWeight: 800, color: RISK_COLOR[result.riskLevel], fontFamily: "'DM Mono',monospace" }}>{result.riskScore}/100</div>
+                                </div>
+                                <div style={{ fontSize: 36 }}>
+                                    {result.riskLevel === "Low" ? "✅" : result.riskLevel === "Medium" ? "⚠️" : "🚨"}
+                                </div>
+                            </div>
+
+                            {/* Owner & Survey */}
+                            <div style={{ background: "white", borderRadius: 14, padding: "16px", marginBottom: 12, border: "1px solid var(--border)", boxShadow: "var(--shadow)" }}>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted)", letterSpacing: 1, marginBottom: 12, fontFamily, textTransform: "uppercase" }}>
+                                    {isTe ? "భూమి వివరాలు" : "Land Details"}
+                                </div>
+                                {[
+                                    [isTe ? "సర్వే నంబర్" : "Survey Number", result.surveyNumber, "🔢"],
+                                    [isTe ? "యజమాని పేరు" : "Owner Name", result.ownerName, "👤"],
+                                    [isTe ? "గ్రామం" : "Village", `${result.village}, ${result.mandal}`, "🏘"],
+                                    [isTe ? "జిల్లా" : "District", result.district, "📍"],
+                                    [isTe ? "భూమి రకం" : "Land Type", result.landType, "🌾"],
+                                    [isTe ? "నేల రకం" : "Soil Type", result.soilType, "🪨"],
+                                ].map(([label, value, icon]) => (
+                                    <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: 8, marginBottom: 8, borderBottom: "1px solid var(--border)" }}>
+                                        <span style={{ fontSize: 12, color: "var(--muted)", fontFamily }}>{icon} {label}</span>
+                                        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)", fontFamily, textAlign: "right", maxWidth: "55%" }}>{value}</span>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Area Details */}
+                            <div style={{ background: "white", borderRadius: 14, padding: "16px", marginBottom: 12, border: "1px solid var(--border)", boxShadow: "var(--shadow)" }}>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted)", letterSpacing: 1, marginBottom: 12, fontFamily, textTransform: "uppercase" }}>
+                                    📐 {isTe ? "విస్తీర్ణం వివరాలు" : "Area Details"}
+                                </div>
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+                                    {[
+                                        [result.extentAcres, isTe ? "ఎకరాలు" : "Acres"],
+                                        [result.extentGuntas, isTe ? "గుంటలు" : "Guntas"],
+                                        [result.extentCents, isTe ? "సెంట్లు" : "Cents"],
+                                    ].map(([val, unit]) => (
+                                        <div key={unit} style={{ background: "var(--ok-bg)", borderRadius: 10, padding: "12px 8px", textAlign: "center" }}>
+                                            <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 22, fontWeight: 800, color: "var(--forest)" }}>{val}</div>
+                                            <div style={{ fontSize: 11, color: "var(--muted)", fontFamily, marginTop: 3 }}>{unit}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                                <div style={{ marginTop: 10, background: "var(--paper)", borderRadius: 8, padding: "8px 12px", display: "flex", justifyContent: "space-between" }}>
+                                    <span style={{ fontSize: 12, color: "var(--muted)", fontFamily }}>{isTe ? "మార్కెట్ విలువ" : "Market Value"}</span>
+                                    <span style={{ fontSize: 14, fontWeight: 700, color: "var(--forest)", fontFamily: "'DM Mono',monospace" }}>{result.marketValue}</span>
+                                </div>
+                            </div>
+
+                            {/* Boundaries */}
+                            <div style={{ background: "white", borderRadius: 14, padding: "16px", marginBottom: 12, border: "1px solid var(--border)", boxShadow: "var(--shadow)" }}>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted)", letterSpacing: 1, marginBottom: 12, fontFamily, textTransform: "uppercase" }}>
+                                    🧭 {isTe ? "భూమి హద్దులు" : "Land Boundaries"}
+                                </div>
+                                <div style={{ position: "relative", width: "100%", height: 220, background: "var(--paper)", borderRadius: 10, border: "2px solid var(--border)", overflow: "hidden" }}>
+                                    {/* Boundary visualization */}
+                                    <div style={{ width: "60%", height: "60%", background: "rgba(74,139,53,.15)", border: "2px solid var(--gmd)", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                        <div style={{ textAlign: "center" }}>
+                                            <div style={{ fontSize: 20 }}>🌾</div>
+                                            <div style={{ fontSize: 10, color: "var(--forest)", fontWeight: 700, fontFamily }}>{result.extentAcres} {isTe ? "ఎకరాలు" : "Acres"}</div>
+                                        </div>
+                                    </div>
+                                    {/* Direction labels */}
+                                    {[
+                                        ["North", "↑", { top: 4, left: "50%", transform: "translateX(-50%)" }],
+                                        ["South", "↓", { bottom: 4, left: "50%", transform: "translateX(-50%)" }],
+                                        ["East", "→", { right: 4, top: "50%", transform: "translateY(-50%)" }],
+                                        ["West", "←", { left: 4, top: "50%", transform: "translateY(-50%)" }],
+                                    ].map(([dir, arrow, style]) => (
+                                        <div key={dir} style={{ position: "absolute", ...style, fontSize: 9, color: "var(--muted)", textAlign: "center", fontFamily, maxWidth: 80 }}>
+                                            <div style={{ fontSize: 14 }}>{arrow}</div>
+                                            <div style={{ fontSize: 8, lineHeight: 1.2 }}>{result.boundaries[dir.toLowerCase()]}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Legal Status */}
+                            <div style={{ background: "white", borderRadius: 14, padding: "16px", marginBottom: 12, border: "1px solid var(--border)", boxShadow: "var(--shadow)" }}>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted)", letterSpacing: 1, marginBottom: 12, fontFamily, textTransform: "uppercase" }}>
+                                    ⚖️ {isTe ? "చట్టపరమైన స్థితి" : "Legal Status"}
+                                </div>
+                                {[
+                                    [isTe ? "EC స్థితి" : "EC Status", result.ecStatus],
+                                    [isTe ? "బ్యాంకు రుణం" : "Bank Loan", result.bankLoan],
+                                    [isTe ? "కోర్టు కేసు" : "Court Case", result.courtCase],
+                                ].map(([label, value]) => {
+                                    const isOk = !value.includes("⚠") && !value.includes("❌");
+                                    return (
+                                        <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
+                                            <span style={{ fontSize: 12, color: "var(--muted)", fontFamily }}>{label}</span>
+                                            <span style={{ fontSize: 12, fontWeight: 600, color: isOk ? "var(--ok)" : "var(--err)", fontFamily, textAlign: "right", maxWidth: "60%" }}>{value}</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Previous Owners */}
+                            <div style={{ background: "white", borderRadius: 14, padding: "16px", marginBottom: 16, border: "1px solid var(--border)", boxShadow: "var(--shadow)" }}>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted)", letterSpacing: 1, marginBottom: 12, fontFamily, textTransform: "uppercase" }}>
+                                    👥 {isTe ? "గత యజమానులు" : "Previous Owners"}
+                                </div>
+                                {result.previousOwners.map((owner, i) => (
+                                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                                        <div style={{ width: 8, height: 8, borderRadius: "50%", background: i === result.previousOwners.length - 1 ? "var(--gold)" : "var(--gmd)", flexShrink: 0 }} />
+                                        <span style={{ fontSize: 13, color: i === result.previousOwners.length - 1 ? "var(--forest)" : "var(--ink2)", fontWeight: i === result.previousOwners.length - 1 ? 700 : 400, fontFamily }}>{owner}</span>
+                                        {i === result.previousOwners.length - 1 && <span style={{ fontSize: 10, background: "var(--gold)", color: "white", padding: "2px 8px", borderRadius: 10, fontFamily, flexShrink: 0 }}>{isTe ? "ప్రస్తుత" : "Current"}</span>}
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Map action buttons */}
+                            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                                <a href={`https://www.google.com/maps?q=${result.latitude},${result.longitude}&z=18&t=k`} target="_blank" rel="noopener noreferrer"
+                                    style={{ flex: 1, background: "#1565C0", color: "white", border: "none", borderRadius: 10, padding: "10px", fontWeight: 600, cursor: "pointer", fontSize: 12, fontFamily, textDecoration: "none", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                                    🛰 {isTe ? "శాటిలైట్ వ్యూ" : "Satellite View"}
+                                </a>
+                                <a href={`https://www.google.com/maps/dir/?api=1&destination=${result.latitude},${result.longitude}`} target="_blank" rel="noopener noreferrer"
+                                    style={{ flex: 1, background: "#2D7A3A", color: "white", border: "none", borderRadius: 10, padding: "10px", fontWeight: 600, cursor: "pointer", fontSize: 12, fontFamily, textDecoration: "none", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                                    🗺 {isTe ? "దారి చూపించు" : "Get Directions"}
+                                </a>
+                                <a href={`https://www.openstreetmap.org/?mlat=${result.latitude}&mlon=${result.longitude}&zoom=17`} target="_blank" rel="noopener noreferrer"
+                                    style={{ flex: 1, background: "#FF6B00", color: "white", border: "none", borderRadius: 10, padding: "10px", fontWeight: 600, cursor: "pointer", fontSize: 12, fontFamily, textDecoration: "none", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                                    🔍 {isTe ? "పూర్తి మ్యాప్" : "Full Map"}
+                                </a>
+                            </div>
+
+                            {/* Action buttons */}
+                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                <button onClick={() => { setStep("search"); setSurveyInput(""); setVillageInput(""); }}
+                                    style={{ flex: 1, background: "var(--paper)", border: "1px solid var(--border)", borderRadius: 10, padding: "11px", fontWeight: 600, cursor: "pointer", fontSize: 13, fontFamily }}>
+                                    🔍 {isTe ? "మళ్ళీ వెతకండి" : "Search Again"}
+                                </button>
+                                <button style={{ flex: 1, background: "var(--forest)", color: "white", border: "none", borderRadius: 10, padding: "11px", fontWeight: 600, cursor: "pointer", fontSize: 13, fontFamily }}>
+                                    📥 {isTe ? "నివేదిక డౌన్‌లోడ్" : "Download Report"}
+                                </button>
+                            </div>
+
+                            <div style={{ marginTop: 12, background: "var(--warn-bg)", borderRadius: 10, padding: "10px 14px", border: "1px solid #FFE082" }}>
+                                <div style={{ fontSize: 11, color: "#795548", fontFamily }}>
+                                    ⚖️ {isTe ? "లాండ్‌చెక్ రిస్క్ విశ్లేషణ మాత్రమే అందిస్తుంది. తుది యాజమాన్యం ప్రభుత్వ అధికారులు నిర్ధారిస్తారు." : "LandCheck provides risk analysis only. Final ownership confirmed by government authorities."}
+                                </div>
+                            </div>
+                        </div>
                     )}
                 </div>
             </div>
