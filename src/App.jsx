@@ -162,16 +162,54 @@ function LangProvider({ children }) {
 
 function AuthProvider({ children }) {
     const [auth, setAuth] = useState(null);
+
     const login = async (email, password) => {
-        await new Promise(r => setTimeout(r, 900));
-        const user = DEMO_USERS[email.toLowerCase()];
-        if (!user || DEMO_PASSWORDS[email.toLowerCase()] !== password) throw new Error("Invalid email or password");
-        const result = { user, accessToken: "demo-token" };
-        setAuth(result);
-        return result;
+        // First try real API
+        try {
+            const res = await fetch(`${API_BASE}/auth/login`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email, password })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setAuth(data);
+                return data;
+            }
+            // If API returns error, show message
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.message || "Invalid email or password");
+        } catch (e) {
+            // If API unreachable, fall back to demo accounts
+            if (e.message === "Failed to fetch" || e.message.includes("fetch")) {
+                await new Promise(r => setTimeout(r, 900));
+                const user = DEMO_USERS[email.toLowerCase()];
+                if (!user || DEMO_PASSWORDS[email.toLowerCase()] !== password) throw new Error("Invalid email or password");
+                const result = { user, accessToken: "demo-token" };
+                setAuth(result);
+                return result;
+            }
+            throw e;
+        }
     };
+
+    const register = async (fullName, email, phone, password, role, organisation) => {
+        const res = await fetch(`${API_BASE}/auth/register`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ fullName, email, phone, password, role, organisation })
+        });
+        if (res.ok) {
+            const data = await res.json();
+            setAuth(data);
+            return data;
+        }
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || "Registration failed. Please try again.");
+    };
+
     const logout = () => setAuth(null);
-    return <AuthCtx.Provider value={{ auth, login, logout, user: auth?.user }}>{children}</AuthCtx.Provider>;
+    return <AuthCtx.Provider value={{ auth, login, logout, register, user: auth?.user }}>{children}</AuthCtx.Provider>;
 }
 
 const Spin = ({ s = 20, c = "white" }) => <div style={{ width: s, height: s, border: `2px solid rgba(255,255,255,.2)`, borderTop: `2px solid ${c}`, borderRadius: "50%", animation: "spin .7s linear infinite", flexShrink: 0 }} />;
@@ -1216,21 +1254,175 @@ function LandScanner({ onClose }) {
     );
 }
 
+function RegisterPage({ onBack }) {
+    const { t, isTe, lang } = useLang();
+    const { register } = useAuth();
+    const [step, setStep] = useState(1); // 1=role, 2=details
+    const [role, setRole] = useState("");
+    const [form, setForm] = useState({ fullName: "", email: "", phone: "", password: "", confirmPassword: "", organisation: "" });
+    const [loading, setLoading] = useState(false);
+    const [err, setErr] = useState("");
+    const up = (k, v) => setForm(f => ({ ...f, [k]: v }));
+    const fontFamily = isTe ? "'Noto Sans Telugu','Instrument Sans',sans-serif" : "'Instrument Sans',sans-serif";
+
+    const ROLES = [
+        { val: "Farmer", icon: "🌾", label: isTe ? "రైతు" : "Farmer", desc: isTe ? "వ్యవసాయ భూమి కొనండి/అమ్మండి" : "Own / buy agricultural land" },
+        { val: "Bank", icon: "🏦", label: isTe ? "బ్యాంకు" : "Bank / NBFC", desc: isTe ? "రుణం ఇవ్వడానికి ముందు ధృవీకరించండి" : "Verify before loan" },
+        { val: "Lawyer", icon: "⚖️", label: isTe ? "న్యాయవాది" : "Advocate", desc: isTe ? "భూమి వివాద విశ్లేషణ" : "Land dispute analysis" },
+        { val: "RealEstateAgent", icon: "🏢", label: isTe ? "రియల్ ఎస్టేట్" : "Real Estate", desc: isTe ? "ఆస్తి లావాదేవీలు" : "Property transactions" },
+        { val: "NRI", icon: "✈️", label: "NRI", desc: isTe ? "దూరంగా ఉండి ధృవీకరించండి" : "Remote land verification" },
+    ];
+
+    const needsOrg = ["Bank", "Lawyer", "RealEstateAgent"].includes(role);
+
+    const validate = () => {
+        if (!form.fullName.trim()) return "Full name is required";
+        if (!form.email.trim() || !form.email.includes("@")) return "Valid email is required";
+        if (!form.phone.trim() || form.phone.length < 10) return "Valid 10-digit mobile number is required";
+        if (form.password.length < 8) return "Password must be at least 8 characters";
+        if (form.password !== form.confirmPassword) return "Passwords do not match";
+        if (needsOrg && !form.organisation.trim()) return "Organisation name is required";
+        return null;
+    };
+
+    const doRegister = async () => {
+        const error = validate();
+        if (error) { setErr(error); return; }
+        setLoading(true); setErr("");
+        try {
+            await register(form.fullName, form.email, form.phone, form.password, role, needsOrg ? form.organisation : null);
+        } catch (e) {
+            setErr(e.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div style={{ minHeight: "100vh", display: "flex", background: "var(--cream)" }}>
+            {/* Left Panel */}
+            <div style={{ flex: "0 0 380px", background: "var(--forest)", display: "flex", flexDirection: "column", justifyContent: "center", padding: "48px 44px", position: "relative", overflow: "hidden" }}>
+                <div style={{ position: "absolute", top: -80, right: -80, width: 300, height: 300, borderRadius: "50%", background: "rgba(74,139,53,.15)" }} />
+                <div style={{ position: "relative", zIndex: 1 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 40 }}>
+                        <div style={{ width: 42, height: 42, background: "var(--gold)", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>🗺</div>
+                        <span style={{ fontFamily: "'Syne',sans-serif", fontSize: 24, fontWeight: 800, color: "white" }}>LandCheck</span>
+                    </div>
+                    <h1 style={{ fontFamily: isTe ? "'Noto Sans Telugu',sans-serif" : "'Syne',sans-serif", fontSize: isTe ? "26px" : "34px", fontWeight: 800, color: "white", lineHeight: 1.2, marginBottom: 14 }}>
+                        {isTe ? "కొత్త ఖాతా తెరవండి" : "Create Your Account"}
+                    </h1>
+                    <p style={{ color: "rgba(255,255,255,.55)", fontSize: 14, lineHeight: 1.7, marginBottom: 32, fontFamily }}>
+                        {isTe ? "భారతదేశపు మొదటి తెలుగు భూమి మోసం నివారణ వేదికలో చేరండి" : "Join India's first Telugu land fraud prevention platform"}
+                    </p>
+                    {[["✓ Free to register", "నమోదు ఉచితం"], ["✓ Secure & private", "సురక్షితం"], ["✓ Telugu support", "తెలుగు మద్దతు"]].map(([en, te]) => (
+                        <div key={en} style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 10 }}>
+                            <span style={{ fontSize: 13, color: "var(--gldlt)", fontFamily }}>{isTe ? te : en}</span>
+                        </div>
+                    ))}
+                    <div style={{ marginTop: 32 }}>
+                        <button onClick={onBack} style={{ background: "rgba(255,255,255,.1)", border: "1px solid rgba(255,255,255,.2)", color: "white", padding: "10px 20px", borderRadius: 10, cursor: "pointer", fontSize: 13, fontFamily, fontWeight: 600 }}>
+                            ← {isTe ? "లాగిన్‌కు వెనుకకు" : "Back to Login"}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Right Panel */}
+            <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 24px", overflowY: "auto" }}>
+                <div style={{ width: "100%", maxWidth: 440 }}>
+
+                    {/* Step indicator */}
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 28 }}>
+                        {[1, 2].map(s => (
+                            <div key={s} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <div style={{ width: 28, height: 28, borderRadius: "50%", background: step >= s ? "var(--forest)" : "var(--paper)", border: `2px solid ${step >= s ? "var(--forest)" : "var(--border)"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: step >= s ? "white" : "var(--muted)" }}>
+                                    {step > s ? "✓" : s}
+                                </div>
+                                <span style={{ fontSize: 12, color: step >= s ? "var(--forest)" : "var(--muted)", fontWeight: step === s ? 700 : 400, fontFamily }}>
+                                    {s === 1 ? (isTe ? "మీ పాత్ర" : "Your Role") : (isTe ? "మీ వివరాలు" : "Your Details")}
+                                </span>
+                                {s < 2 && <div style={{ width: 32, height: 2, background: step > 1 ? "var(--forest)" : "var(--border)", borderRadius: 1 }} />}
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* STEP 1 — Role Selection */}
+                    {step === 1 && (
+                        <div>
+                            <h2 style={{ fontFamily: isTe ? "'Noto Sans Telugu',sans-serif" : "'Syne',sans-serif", fontSize: 22, fontWeight: 700, marginBottom: 4, color: "var(--ink)" }}>
+                                {isTe ? "మీరు ఎవరు?" : "Who are you?"}
+                            </h2>
+                            <p style={{ color: "var(--muted)", marginBottom: 20, fontSize: 14, fontFamily }}>
+                                {isTe ? "మీ పాత్రను ఎంచుకోండి" : "Select your role to get started"}
+                            </p>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24 }}>
+                                {ROLES.map(r => (
+                                    <button key={r.val} onClick={() => setRole(r.val)}
+                                        style={{ background: role === r.val ? "var(--forest)" : "white", border: `2px solid ${role === r.val ? "var(--forest)" : "var(--border)"}`, borderRadius: 12, padding: "14px 16px", cursor: "pointer", display: "flex", alignItems: "center", gap: 14, transition: "all .2s", boxShadow: role === r.val ? "0 4px 16px rgba(28,58,18,.2)" : "var(--shadow)", textAlign: "left" }}>
+                                        <div style={{ width: 40, height: 40, background: role === r.val ? "rgba(255,255,255,.2)" : "var(--paper)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0 }}>{r.icon}</div>
+                                        <div style={{ flex: 1 }}>
+                                            <div style={{ fontWeight: 700, fontSize: 14, color: role === r.val ? "white" : "var(--ink)", fontFamily }}>{r.label}</div>
+                                            <div style={{ fontSize: 12, color: role === r.val ? "rgba(255,255,255,.7)" : "var(--muted)", marginTop: 2, fontFamily }}>{r.desc}</div>
+                                        </div>
+                                        {role === r.val && <div style={{ width: 20, height: 20, background: "var(--gold)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "white", fontWeight: 700, flexShrink: 0 }}>✓</div>}
+                                    </button>
+                                ))}
+                            </div>
+                            <button onClick={() => role && setStep(2)} disabled={!role}
+                                style={{ width: "100%", background: role ? "var(--forest)" : "var(--border)", color: "white", border: "none", padding: "13px", borderRadius: 12, fontWeight: 700, fontSize: 15, cursor: role ? "pointer" : "not-allowed", fontFamily, opacity: role ? 1 : .6 }}>
+                                {isTe ? "కొనసాగించు →" : "Continue →"}
+                            </button>
+                        </div>
+                    )}
+
+                    {/* STEP 2 — Details Form */}
+                    {step === 2 && (
+                        <div>
+                            <h2 style={{ fontFamily: isTe ? "'Noto Sans Telugu',sans-serif" : "'Syne',sans-serif", fontSize: 22, fontWeight: 700, marginBottom: 4, color: "var(--ink)" }}>
+                                {isTe ? "మీ వివరాలు" : "Your Details"}
+                            </h2>
+                            <p style={{ color: "var(--muted)", marginBottom: 20, fontSize: 14, fontFamily }}>
+                                {isTe ? "దయచేసి మీ సమాచారం నమోదు చేయండి" : "Please fill in your information"}
+                            </p>
+                            {err && (
+                                <div style={{ background: "var(--err-bg)", border: "1px solid #FFCDD2", borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: 13, color: "var(--err)", fontFamily }}>
+                                    ⚠ {err}
+                                </div>
+                            )}
+                            <Input label={isTe ? "పూర్తి పేరు (ఆధార్ ప్రకారం)" : "Full Name (as per Aadhaar)"} value={form.fullName} onChange={e => up("fullName", e.target.value)} placeholder={isTe ? "మీ పూర్తి పేరు" : "Your full legal name"} icon="👤" required />
+                            <Input label={isTe ? "ఇమెయిల్" : "Email Address"} type="email" value={form.email} onChange={e => up("email", e.target.value)} placeholder="your@email.com" icon="✉" required />
+                            <Input label={isTe ? "మొబైల్ నంబర్" : "Mobile Number"} type="tel" value={form.phone} onChange={e => up("phone", e.target.value.replace(/\D/g, "").slice(0, 10))} placeholder="10-digit mobile number" icon="📱" required />
+                            {needsOrg && (
+                                <Input label={isTe ? "సంస్థ పేరు" : "Organisation Name"} value={form.organisation} onChange={e => up("organisation", e.target.value)} placeholder={isTe ? "బ్యాంకు / సంస్థ పేరు" : "Bank / firm name"} icon="🏢" required />
+                            )}
+                            <Input label={isTe ? "పాస్‌వర్డ్" : "Password"} type="password" value={form.password} onChange={e => up("password", e.target.value)} placeholder={isTe ? "కనీసం 8 అక్షరాలు" : "Minimum 8 characters"} icon="🔒" required />
+                            <Input label={isTe ? "పాస్‌వర్డ్ నిర్ధారించండి" : "Confirm Password"} type="password" value={form.confirmPassword} onChange={e => up("confirmPassword", e.target.value)} placeholder={isTe ? "మళ్ళీ నమోదు చేయండి" : "Repeat password"} icon="🔒" required />
+
+                            <div style={{ background: "var(--warn-bg)", border: "1px solid #FFE082", borderRadius: 10, padding: "10px 14px", marginBottom: 16, fontSize: 12, color: "#795548", fontFamily }}>
+                                ⚖️ {isTe ? "లాండ్‌చెక్ రిస్క్ విశ్లేషణ మాత్రమే అందిస్తుంది. తుది యాజమాన్యం ప్రభుత్వ అధికారులు నిర్ధారిస్తారు." : "LandCheck provides risk analysis only — not legal ownership declarations."}
+                            </div>
+
+                            <Btn onClick={doRegister} loading={loading} style={{ marginBottom: 12 }}>
+                                {loading ? (isTe ? "ఖాతా తయారు చేస్తున్నది…" : "Creating account…") : (isTe ? "ఖాతా తెరవండి 🎉" : "Create Account 🎉")}
+                            </Btn>
+                            <button onClick={() => setStep(1)} style={{ width: "100%", background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: 13, fontFamily, padding: "8px" }}>
+                                ← {isTe ? "పాత్ర మార్చండి" : "Change role"}
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
+
 function AppInner() {
     const { lang } = useLang();
     const { auth } = useAuth();
     const [page, setPage] = useState("login");
     if (!lang) return <LanguageScreen />;
     if (auth) return <Dashboard />;
-    if (page === "register") return (
-        <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--cream)", padding: 24 }}>
-            <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 48, marginBottom: 16 }}>🚧</div>
-                <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Register Coming Soon</div>
-                <button onClick={() => setPage("login")} style={{ background: "var(--forest)", color: "white", border: "none", borderRadius: 10, padding: "10px 24px", cursor: "pointer", fontWeight: 600 }}>← Back to Login</button>
-            </div>
-        </div>
-    );
+    if (page === "register") return <RegisterPage onBack={() => setPage("login")} />;
     return <LoginPage onLogin={() => { }} onRegister={() => setPage("register")} />;
 }
 
