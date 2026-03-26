@@ -93,7 +93,7 @@ const SUGGESTED_QUESTIONS = {
     te: ["EC అంటే ఏమిటి?", "భూమి మోసాన్ని ఎలా గుర్తించాలి?", "నిజమైన యజమానిని ఎలా కనుగొనాలి?", "మీభూమి అంటే ఏమిటి?"]
 };
 
-const API_BASE = "https://localhost:58473/api";
+const API_BASE = "https://landcheck-backend-4dym.onrender.com/api";
 
 const STYLES = `
   @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Instrument+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&family=Noto+Sans+Telugu:wght@400;500;600;700&display=swap');
