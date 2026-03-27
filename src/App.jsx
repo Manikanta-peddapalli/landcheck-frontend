@@ -190,18 +190,24 @@ function AuthProvider({children}){
   const register=async(fullName,email,phone,password,role,organisation)=>{
     const roleMap={"Farmer":0,"Bank":1,"Lawyer":2,"RealEstateAgent":3,"NRI":4,"Government":5};
     const roleNum=roleMap[role]??0;
-    const res=await fetch(`${API_BASE}/auth/register`,{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({fullName,email,phone,password,role:roleNum,organisation})
-    });
-    if(res.ok){
+    try{
+      const res=await fetch(`${API_BASE}/auth/register`,{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({fullName,email,phone,password,role:roleNum,organisation:organisation||null})
+      });
       const data=await res.json();
-      setAuth(data);
-      return data;
+      if(res.ok){
+        setAuth(data);
+        return data;
+      }
+      throw new Error(data.message||data.title||"Registration failed. Please try again.");
+    }catch(e){
+      if(e.message.includes("fetch")||e.message.includes("network")||e.message.includes("Failed")){
+        throw new Error("Cannot connect to server. Please try again.");
+      }
+      throw e;
     }
-    const err=await res.json().catch(()=>({}));
-    throw new Error(err.message||"Registration failed. Please try again.");
   };
 
   const logout=()=>setAuth(null);
