@@ -1415,8 +1415,7 @@ function RegisterPage({onBack}){
 function AppInner(){
   const {lang}=useLang();
   const {auth}=useAuth();
-  const [page,setPage]=useState("landing");
-  if(page==="landing")return <LandingPage onGetStarted={()=>setPage("login")}/>;
+  const [page,setPage]=useState("login");
   if(!lang)return <LanguageScreen/>;
   if(auth)return <Dashboard/>;
   if(page==="register")return <RegisterPage onBack={()=>setPage("login")}/>;
@@ -1524,9 +1523,9 @@ function LandingPage({onGetStarted}){
           LandCheck
         </a>
         <ul className="lp-nav-links">
-          {["How It Works","Pricing","Contact"].map(l=>(
-            <li key={l}><a href="#">{l}</a></li>
-          ))}
+          <li><a href="#features" onClick={e=>{e.preventDefault();document.getElementById('lp-features')?.scrollIntoView({behavior:'smooth'})}}>How It Works</a></li>
+          <li><a href="#pricing" onClick={e=>{e.preventDefault();document.getElementById('lp-pricing')?.scrollIntoView({behavior:'smooth'})}}>Pricing</a></li>
+          <li><a href="mailto:manikanta1742@gmail.com">Contact</a></li>
           <li>
             <select style={{border:"1px solid #E0E0E0",borderRadius:8,padding:"6px 10px",fontSize:13,color:"#3A3A28",cursor:"pointer",fontFamily:"inherit"}}>
               <option>🇮🇳 English</option>
@@ -1621,7 +1620,7 @@ function LandingPage({onGetStarted}){
       </div>
 
       {/* FEATURES */}
-      <section className="lp-features">
+      <section className="lp-features" id="lp-features">
         <div className="lp-features-inner">
           <div className="lp-section-tag">POWERFUL FEATURES</div>
           <h2 className="lp-section-title">Powerful Features for <span style={{color:"#2D5A1E"}}>Safer Property Decisions</span></h2>
@@ -1634,6 +1633,44 @@ function LandingPage({onGetStarted}){
                 </div>
                 <h3>{f.title}</h3>
                 <p>{f.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* PRICING */}
+      <section id="lp-pricing" style={{padding:"70px 5%",background:"#F8FFFE"}}>
+        <div style={{maxWidth:1100,margin:"0 auto"}}>
+          <div style={{textAlign:"center",marginBottom:50}}>
+            <div style={{fontSize:12,fontWeight:700,color:"#4A8B35",letterSpacing:2,textTransform:"uppercase",marginBottom:10,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>PRICING</div>
+            <h2 style={{fontSize:"clamp(26px,3vw,38px)",fontWeight:800,color:"#1C3A12",fontFamily:"'Plus Jakarta Sans',sans-serif",marginBottom:10}}>Simple, Transparent Pricing</h2>
+            <p style={{fontSize:15,color:"#7A7A60",fontFamily:"'Plus Jakarta Sans',sans-serif"}}>Affordable for farmers, powerful for banks</p>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(240px,1fr))",gap:24}}>
+            {[
+              {icon:"🌾",role:"Farmer",price:"₹99-199",period:"per verification",color:"#2D5A1E",bg:"#E8F5E9",features:["Land ownership check","Risk score report","Document verification","MeeBhoomi link"]},
+              {icon:"🏦",role:"Bank / NBFC",price:"₹25,000",period:"per month",color:"#1565C0",bg:"#E3F2FD",features:["Unlimited verifications","All farmer features","Priority support","API access"],popular:true},
+              {icon:"⚖️",role:"Lawyer",price:"₹5,000",period:"per month",color:"#6A1B9A",bg:"#F3E5F5",features:["50 verifications/month","Ownership chain","Dispute analysis","PDF reports"]},
+              {icon:"✈️",role:"NRI",price:"₹499",period:"per verification",color:"#C8760C",bg:"#FFF3E0",features:["Remote verification","English + Telugu","WhatsApp report","Expert consultation"]},
+            ].map(p=>(
+              <div key={p.role} style={{background:"white",borderRadius:18,padding:28,border:p.popular?"2.5px solid "+p.color:"1.5px solid #E8ECF0",boxShadow:p.popular?"0 8px 32px rgba(21,101,192,.15)":"0 4px 16px rgba(0,0,0,.06)",position:"relative",transition:"all .3s"}}>
+                {p.popular&&<div style={{position:"absolute",top:-14,left:"50%",transform:"translateX(-50%)",background:p.color,color:"white",padding:"4px 16px",borderRadius:20,fontSize:12,fontWeight:700,fontFamily:"'Plus Jakarta Sans',sans-serif",whiteSpace:"nowrap"}}>⭐ Most Popular</div>}
+                <div style={{fontSize:36,marginBottom:12}}>{p.icon}</div>
+                <div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:800,fontSize:18,color:"#1C3A12",marginBottom:6}}>{p.role}</div>
+                <div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:800,fontSize:32,color:p.color,marginBottom:4}}>{p.price}</div>
+                <div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:13,color:"#7A7A60",marginBottom:20}}>{p.period}</div>
+                <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:24}}>
+                  {p.features.map(f=>(
+                    <div key={f} style={{display:"flex",alignItems:"center",gap:8,fontSize:13,color:"#3A3A28",fontFamily:"'Plus Jakarta Sans',sans-serif"}}>
+                      <div style={{width:18,height:18,borderRadius:"50%",background:p.bg,color:p.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,flexShrink:0}}>✓</div>
+                      {f}
+                    </div>
+                  ))}
+                </div>
+                <button onClick={onGetStarted} style={{width:"100%",background:p.popular?p.color:"white",color:p.popular?"white":p.color,border:"2px solid "+p.color,padding:"11px",borderRadius:10,fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:700,fontSize:14,cursor:"pointer"}}>
+                  Get Started
+                </button>
               </div>
             ))}
           </div>
