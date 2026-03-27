@@ -1409,7 +1409,8 @@ function RegisterPage({onBack}){
 function AppInner(){
   const {lang}=useLang();
   const {auth}=useAuth();
-  const [page,setPage]=useState("login");
+  const [page,setPage]=useState("landing");
+  if(page==="landing")return <LandingPage onGetStarted={()=>setPage("login")}/>;
   if(!lang)return <LanguageScreen/>;
   if(auth)return <Dashboard/>;
   if(page==="register")return <RegisterPage onBack={()=>setPage("login")}/>;
@@ -1430,3 +1431,235 @@ export default function App(){
 }
 
 // NOTE: AddRecordModal and showAdd state already handled above
+
+// ═══════════════════════════════════════════════════════════
+// BEAUTIFUL LANDING PAGE — Matches reference UI
+// ═══════════════════════════════════════════════════════════
+
+const LANDING_STYLES = `
+  @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+Telugu:wght@400;500;600;700&display=swap');
+  
+  .lp-nav { position:fixed;top:0;left:0;right:0;z-index:100;backdrop-filter:blur(16px);background:rgba(255,255,255,.92);border-bottom:1px solid rgba(45,90,30,.08);padding:0 5%;display:flex;align-items:center;justify-content:space-between;height:68px; }
+  .lp-logo { display:flex;align-items:center;gap:10px;font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:22px;color:#1C3A12;text-decoration:none; }
+  .lp-logo-icon { width:40px;height:40px;background:linear-gradient(135deg,#2D5A1E,#4A8B35);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 4px 12px rgba(45,90,30,.3); }
+  .lp-nav-links { display:flex;gap:32px;list-style:none; }
+  .lp-nav-links a { font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;font-weight:500;color:#3A3A28;text-decoration:none;transition:color .2s; }
+  .lp-nav-links a:hover { color:#2D5A1E; }
+  .lp-btn-primary { background:linear-gradient(135deg,#2D5A1E,#4A8B35);color:white;border:none;padding:11px 24px;border-radius:10px;font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:14px;cursor:pointer;transition:all .2s;box-shadow:0 4px 16px rgba(45,90,30,.3); }
+  .lp-btn-primary:hover { transform:translateY(-1px);box-shadow:0 6px 20px rgba(45,90,30,.4); }
+  .lp-btn-outline { background:white;color:#2D5A1E;border:2px solid #2D5A1E;padding:11px 24px;border-radius:10px;font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:14px;cursor:pointer;transition:all .2s; }
+  .lp-btn-outline:hover { background:#F0F7ED; }
+  .lp-hero { min-height:100vh;background:linear-gradient(160deg,#F0F7ED 0%,#E8F5E0 40%,#F5F9FF 100%);padding:100px 5% 60px;display:flex;align-items:center;position:relative;overflow:hidden; }
+  .lp-hero::before { content:'';position:absolute;top:-100px;right:-100px;width:600px;height:600px;background:radial-gradient(circle,rgba(74,139,53,.12) 0%,transparent 70%);border-radius:50%; }
+  .lp-hero::after { content:'';position:absolute;bottom:-50px;left:-50px;width:400px;height:400px;background:radial-gradient(circle,rgba(200,150,12,.08) 0%,transparent 70%);border-radius:50%; }
+  .lp-hero-content { max-width:1200px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center;width:100%;position:relative;z-index:1; }
+  .lp-hero-tag { display:inline-flex;align-items:center;gap:8px;background:rgba(45,90,30,.1);color:#2D5A1E;padding:6px 14px;border-radius:20px;font-size:13px;font-weight:600;margin-bottom:20px;font-family:'Plus Jakarta Sans',sans-serif; }
+  .lp-hero h1 { font-family:'Plus Jakarta Sans',sans-serif;font-size:clamp(36px,4vw,56px);font-weight:800;color:#1C3A12;line-height:1.15;margin-bottom:20px; }
+  .lp-hero h1 span { background:linear-gradient(135deg,#2D5A1E,#7BBD5E);-webkit-background-clip:text;-webkit-text-fill-color:transparent; }
+  .lp-hero p { font-family:'Plus Jakarta Sans',sans-serif;font-size:17px;color:#5A6A50;line-height:1.7;margin-bottom:32px; }
+  .lp-hero-btns { display:flex;gap:14px;flex-wrap:wrap; }
+  .lp-phone-mock { position:relative;display:flex;justify-content:center; }
+  .lp-phone { background:linear-gradient(160deg,#1C3A12,#2D5A1E);border-radius:32px;padding:24px;box-shadow:0 32px 80px rgba(28,58,18,.3);width:280px;animation:float 4s ease-in-out infinite; }
+  .lp-phone-screen { background:white;border-radius:20px;padding:20px;overflow:hidden; }
+  .lp-risk-badge { background:linear-gradient(135deg,#C0392B,#E74C3C);color:white;font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:13px;padding:6px 14px;border-radius:8px;display:inline-block;margin-bottom:14px;letter-spacing:.5px; }
+  .lp-report-item { display:flex;align-items:center;gap:8px;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;color:#3A3A28;margin-bottom:8px;padding:8px;background:#F8F9FA;border-radius:8px; }
+  .lp-report-icon { font-size:16px; }
+  .lp-score { background:linear-gradient(135deg,#FFF3E0,#FFF8E1);border:2px solid #F0B429;border-radius:10px;padding:12px;margin-top:10px;text-align:center;font-family:'Plus Jakarta Sans',sans-serif; }
+  .lp-features { padding:80px 5%;background:white; }
+  .lp-features-inner { max-width:1200px;margin:0 auto; }
+  .lp-section-tag { text-align:center;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:700;color:#4A8B35;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px; }
+  .lp-section-title { text-align:center;font-family:'Plus Jakarta Sans',sans-serif;font-size:clamp(28px,3vw,42px);font-weight:800;color:#1C3A12;margin-bottom:12px; }
+  .lp-section-sub { text-align:center;font-family:'Plus Jakarta Sans',sans-serif;font-size:16px;color:#7A7A60;margin-bottom:56px; }
+  .lp-cards { display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px; }
+  .lp-card { background:white;border:1.5px solid rgba(45,90,30,.1);border-radius:18px;padding:28px;transition:all .3s;cursor:default; }
+  .lp-card:hover { transform:translateY(-4px);box-shadow:0 16px 48px rgba(45,90,30,.12);border-color:rgba(45,90,30,.25); }
+  .lp-card-icon { width:64px;height:64px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:32px;margin-bottom:18px; }
+  .lp-card h3 { font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;font-weight:700;color:#1C3A12;margin-bottom:10px; }
+  .lp-card p { font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;color:#7A7A60;line-height:1.6; }
+  .lp-stats { display:flex;gap:40px;margin-top:28px;flex-wrap:wrap; }
+  .lp-stat { text-align:center; }
+  .lp-stat-num { font-family:'Plus Jakarta Sans',sans-serif;font-size:28px;font-weight:800;color:#2D5A1E; }
+  .lp-stat-label { font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;color:#7A7A60;margin-top:2px; }
+  .lp-footer-band { background:linear-gradient(135deg,#1C3A12,#2D5A1E);padding:60px 5%;text-align:center; }
+  .lp-footer-band h2 { font-family:'Plus Jakarta Sans',sans-serif;font-size:clamp(24px,3vw,38px);font-weight:800;color:white;margin-bottom:16px; }
+  .lp-footer-band p { font-family:'Plus Jakarta Sans',sans-serif;font-size:16px;color:rgba(255,255,255,.7);margin-bottom:32px; }
+  .lp-checklist { display:inline-flex;flex-direction:column;gap:10px;text-align:left;margin-bottom:32px; }
+  .lp-checklist-item { display:flex;align-items:center;gap:10px;font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;color:rgba(255,255,255,.9); }
+  .lp-check { width:22px;height:22px;background:#4A8B35;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0; }
+  @media(max-width:768px){
+    .lp-hero-content{grid-template-columns:1fr;}
+    .lp-phone-mock{display:none;}
+    .lp-nav-links{display:none;}
+    .lp-stats{gap:20px;}
+  }
+`;
+
+function LandingPage({onGetStarted}){
+  const FEATURES = [
+    {icon:"🎯",bg:"#E8F5E9",title:"Fraud Detection Score",desc:"Get instant score indicating whether a property is Safe, Medium, or High Risk before buying."},
+    {icon:"📍",bg:"#E3F2FD",title:"Field Scan by Location",desc:"Scan any land instantly by automatically detecting your current GPS location on the field."},
+    {icon:"📄",bg:"#FFF3E0",title:"Document Verification",desc:"Upload sale deed, EC, 7/12 to verify ownership and document authenticity instantly."},
+    {icon:"🏦",bg:"#F3E5F5",title:"Loan & Dispute Check",desc:"See if property has active loans with banks, or is part of disputes or litigation."},
+    {icon:"⚠️",bg:"#FFF8E1",title:"Prohibited Land Alerts",desc:"Detect prohibited or disputed lands that are unsafe to buy before you invest."},
+    {icon:"🔗",bg:"#E8F5E9",title:"Ownership Chain Check",desc:"Verify previous owners and the complete transfer history of the property."},
+    {icon:"📊",bg:"#FCE4EC",title:"Simple Fraud Report",desc:"Generate an easy-to-read report showing fraud risks and action steps in Telugu & English."},
+    {icon:"💬",bg:"#E0F7FA",title:"WhatsApp Share Report",desc:"Share property verification reports easily with buyers and agents via WhatsApp."},
+    {icon:"⚖️",bg:"#EDE7F6",title:"Property Expert Connect",desc:"Find verified property lawyers and experts for consultations across AP & Telangana."},
+  ];
+
+  return(
+    <div style={{fontFamily:"'Plus Jakarta Sans',sans-serif"}}>
+      <style>{LANDING_STYLES}</style>
+
+      {/* NAV */}
+      <nav className="lp-nav">
+        <a className="lp-logo" href="#">
+          <div className="lp-logo-icon">🗺</div>
+          LandCheck
+        </a>
+        <ul className="lp-nav-links">
+          {["How It Works","Pricing","Contact"].map(l=>(
+            <li key={l}><a href="#">{l}</a></li>
+          ))}
+          <li>
+            <select style={{border:"1px solid #E0E0E0",borderRadius:8,padding:"6px 10px",fontSize:13,color:"#3A3A28",cursor:"pointer",fontFamily:"inherit"}}>
+              <option>🇮🇳 English</option>
+              <option>🇮🇳 తెలుగు</option>
+            </select>
+          </li>
+        </ul>
+        <button className="lp-btn-primary" onClick={onGetStarted}>Get Started →</button>
+      </nav>
+
+      {/* HERO */}
+      <section className="lp-hero">
+        <div className="lp-hero-content">
+          <div>
+            <div className="lp-hero-tag">
+              🇮🇳 India's #1 Telugu Land Fraud Platform
+            </div>
+            <h1>
+              Ultimate Land Verification<br/>
+              & <span>Risk Check</span>
+            </h1>
+            <p>
+              Verify property ownership, detect fraud risks, and scan land in minutes — before you invest. Trusted by farmers, banks & lawyers across AP & Telangana.
+            </p>
+            <div className="lp-hero-btns">
+              <button className="lp-btn-primary" onClick={onGetStarted} style={{fontSize:15,padding:"14px 28px"}}>
+                🔍 Search Land Records
+              </button>
+              <button className="lp-btn-outline" onClick={onGetStarted} style={{fontSize:15,padding:"14px 28px"}}>
+                📤 Upload Document
+              </button>
+            </div>
+            <div className="lp-stats">
+              {[["12,840+","Verifications"],["1,204","Frauds Stopped"],["38","Banks Trust Us"],["100%","Telugu Support"]].map(([n,l])=>(
+                <div className="lp-stat" key={l}>
+                  <div className="lp-stat-num">{n}</div>
+                  <div className="lp-stat-label">{l}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* PHONE MOCKUP */}
+          <div className="lp-phone-mock">
+            <div className="lp-phone">
+              <div className="lp-phone-screen">
+                <div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:12,fontWeight:700,color:"#7A7A60",letterSpacing:1,marginBottom:8}}>LAND REPORT</div>
+                <div className="lp-risk-badge">🚨 HIGH RISK</div>
+                <div className="lp-report-item">
+                  <span className="lp-report-icon">👤</span>
+                  <span><b>Owner:</b> Mismatch Found</span>
+                </div>
+                <div className="lp-report-item">
+                  <span className="lp-report-icon">🏦</span>
+                  <span><b>Loan:</b> EC Shows Lien</span>
+                </div>
+                <div className="lp-report-item">
+                  <span className="lp-report-icon">⚠️</span>
+                  <span><b>Chain:</b> Gap 2005-2012</span>
+                </div>
+                <div className="lp-score">
+                  <div style={{fontSize:11,color:"#C0392B",fontWeight:700,marginBottom:4}}>RISK SCORE</div>
+                  <div style={{fontSize:32,fontWeight:800,color:"#C0392B"}}>78<span style={{fontSize:16,color:"#999"}}>/100</span></div>
+                  <div style={{fontSize:11,color:"#999",marginTop:2}}>Final Score: High Risk ⚠️</div>
+                </div>
+              </div>
+              <div style={{textAlign:"center",marginTop:16,fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:12,color:"rgba(255,255,255,.6)"}}>
+                Powered by LandCheck AI
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CHECKLIST BANNER */}
+      <div style={{background:"linear-gradient(135deg,#F0F7ED,#E8F5E0)",padding:"32px 5%",borderTop:"1px solid rgba(45,90,30,.1)",borderBottom:"1px solid rgba(45,90,30,.1)"}}>
+        <div style={{maxWidth:1200,margin:"0 auto",display:"flex",alignItems:"center",gap:40,flexWrap:"wrap",justifyContent:"center"}}>
+          <div>
+            <div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:800,fontSize:20,color:"#1C3A12",marginBottom:8}}>📋 Before Buying Checklist</div>
+            <div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:15,color:"#5A6A50"}}>Verify Ownership indicating whether a property is <b style={{color:"#2D7A3A"}}>Safe</b>, <b style={{color:"#C8960C"}}>Medium</b>, or <b style={{color:"#C0392B"}}>High Risk</b></div>
+          </div>
+          {[["✅","EC Certificate","30 years clean"],["✅","Sale Deed","Registered verified"],["✅","ROR 1B","Owner confirmed"],["✅","Adangal","Revenue record OK"]].map(([ic,t,s])=>(
+            <div key={t} style={{display:"flex",alignItems:"center",gap:10,background:"white",borderRadius:12,padding:"12px 18px",boxShadow:"0 4px 16px rgba(45,90,30,.08)"}}>
+              <span style={{fontSize:20}}>{ic}</span>
+              <div>
+                <div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:700,fontSize:14,color:"#1C3A12"}}>{t}</div>
+                <div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:12,color:"#7A7A60"}}>{s}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* FEATURES */}
+      <section className="lp-features">
+        <div className="lp-features-inner">
+          <div className="lp-section-tag">POWERFUL FEATURES</div>
+          <h2 className="lp-section-title">Powerful Features for <span style={{color:"#2D5A1E"}}>Safer Property Decisions</span></h2>
+          <p className="lp-section-sub">All-in-one toolkit to verify land and detect fraud risks, with confidence.</p>
+          <div className="lp-cards">
+            {FEATURES.map((f,i)=>(
+              <div className="lp-card" key={i} style={{animationDelay:`${i*.05}s`}}>
+                <div className="lp-card-icon" style={{background:f.bg}}>
+                  {f.icon}
+                </div>
+                <h3>{f.title}</h3>
+                <p>{f.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA FOOTER */}
+      <section className="lp-footer-band">
+        <div style={{maxWidth:700,margin:"0 auto"}}>
+          <h2>Protect Your Land Investment Today</h2>
+          <p>Join thousands of farmers, banks, and lawyers who trust LandCheck for land verification across AP & Telangana.</p>
+          <div className="lp-checklist">
+            {["Free to register — no credit card needed","Real government data from MeeBhoomi & Dharani","Full Telugu language support for farmers","Trusted by 38+ banks across Andhra Pradesh"].map(item=>(
+              <div className="lp-checklist-item" key={item}>
+                <div className="lp-check">✓</div>
+                {item}
+              </div>
+            ))}
+          </div>
+          <div style={{display:"flex",gap:14,justifyContent:"center",flexWrap:"wrap"}}>
+            <button onClick={onGetStarted} style={{background:"#F0B429",color:"#1C3A12",border:"none",padding:"16px 36px",borderRadius:12,fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:800,fontSize:16,cursor:"pointer",boxShadow:"0 8px 24px rgba(240,180,41,.4)"}}>
+              🚀 Get Started Free
+            </button>
+            <button onClick={onGetStarted} style={{background:"rgba(255,255,255,.15)",color:"white",border:"2px solid rgba(255,255,255,.3)",padding:"16px 36px",borderRadius:12,fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:700,fontSize:16,cursor:"pointer"}}>
+              📞 Talk to Expert
+            </button>
+          </div>
+          <div style={{marginTop:40,paddingTop:32,borderTop:"1px solid rgba(255,255,255,.15)",fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:13,color:"rgba(255,255,255,.4)"}}>
+            © 2026 LandCheck · India's Telugu Land Fraud Prevention Platform · manikanta1742@gmail.com
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
