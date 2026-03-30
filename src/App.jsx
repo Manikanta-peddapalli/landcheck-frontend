@@ -505,6 +505,82 @@ function LoginPage({onLogin,onRegister}){
   );
 }
 
+
+// ═══════════════════════════════════════════════════════════
+// DIGILOCKER BUTTON — ONE TIME VERIFICATION
+// ═══════════════════════════════════════════════════════════
+function DigiLockerButton({landRecordId, isTe, fontFamily}){
+  const STORAGE_KEY = `digilocker_verified_${landRecordId}`;
+  const storedData = localStorage.getItem(STORAGE_KEY);
+  const [verified, setVerified] = useState(!!storedData);
+  const [verifiedDate, setVerifiedDate] = useState(storedData || "");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  // Already verified — show green badge only
+  if(verified){
+    return(
+      <div style={{marginBottom:10,background:"var(--ok-bg)",border:"1.5px solid var(--ok)",borderRadius:10,padding:"12px 16px",display:"flex",alignItems:"center",gap:10}}>
+        <div style={{width:32,height:32,background:"var(--ok)",borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>✓</div>
+        <div>
+          <div style={{fontWeight:700,fontSize:13,color:"var(--ok)",fontFamily}}>
+            {isTe ? "🔐 డిజిలాకర్ ధృవీకరించబడింది" : "🔐 DigiLocker Verified"}
+          </div>
+          <div style={{fontSize:11,color:"var(--muted)",fontFamily,marginTop:2}}>
+            {isTe ? `ధృవీకరించిన తేదీ: ${verifiedDate}` : `Verified on: ${verifiedDate}`}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const handleDigiLocker = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch(`${API_BASE}/digilocker/generate-link`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          landRecordId: landRecordId,
+          redirectUrl: "https://landcheck-frontend.vercel.app"
+        })
+      });
+      const data = await res.json();
+      if(data.success && data.link){
+        // Save verification date to localStorage
+        const today = new Date().toLocaleDateString("en-IN", {day:"2-digit",month:"short",year:"numeric"});
+        localStorage.setItem(STORAGE_KEY, today);
+        setVerified(true);
+        setVerifiedDate(today);
+        window.open(data.link, "_blank");
+      } else {
+        setError(isTe ? "డిజిలాకర్ లింక్ రాలేదు. మళ్ళీ ప్రయత్నించండి." : "Could not get DigiLocker link. Try again.");
+      }
+    } catch(e) {
+      setError(isTe ? "కనెక్ట్ అవ్వలేదు. మళ్ళీ ప్రయత్నించండి." : "Connection failed. Try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{marginBottom:10}}>
+      <button onClick={handleDigiLocker} disabled={loading}
+        style={{width:"100%",background:loading?"#888":"linear-gradient(135deg,#1565C0,#1976D2)",color:"white",border:"none",padding:"11px",borderRadius:10,fontWeight:700,cursor:loading?"not-allowed":"pointer",fontSize:13,fontFamily,display:"flex",alignItems:"center",justifyContent:"center",gap:8,opacity:loading?0.7:1,transition:"all .2s"}}>
+        {loading
+          ? <><div style={{width:16,height:16,border:"2px solid rgba(255,255,255,.3)",borderTop:"2px solid white",borderRadius:"50%",animation:"spin .7s linear infinite"}}/>{isTe?"లోడ్ అవుతున్నది...":"Loading..."}</>
+          : <>{isTe?"🔐 డిజిలాకర్‌తో ధృవీకరించండి":"🔐 Verify with DigiLocker"}</>
+        }
+      </button>
+      {error&&<div style={{fontSize:11,color:"var(--err)",marginTop:4,textAlign:"center",fontFamily}}>⚠ {error}</div>}
+      <div style={{fontSize:10,color:"var(--muted)",marginTop:4,textAlign:"center",fontFamily}}>
+        {isTe?"ఒక్కసారి మాత్రమే ధృవీకరించండి — ఆధార్ ద్వారా":"One-time verification via Aadhaar"}
+      </div>
+    </div>
+  );
+}
+
 function Dashboard(){
   const {t,isTe,lang,setLang}=useLang();
   const {user,logout}=useAuth();
@@ -673,6 +749,7 @@ function Dashboard(){
                     style={{display:"block",textAlign:"center",background:"var(--blue-bg)",color:"var(--blue)",border:"1px solid #90CAF9",borderRadius:10,padding:"10px",fontWeight:600,fontSize:13,marginBottom:10,textDecoration:"none",fontFamily}}>
                     {t.verifyMeeBhoomi}
                   </a>
+                  <DigiLockerButton landRecordId={selected.id} isTe={isTe} fontFamily={fontFamily}/>
                   <button style={{width:"100%",background:"var(--forest)",color:"white",border:"none",padding:"11px",borderRadius:10,fontWeight:700,cursor:"pointer",fontSize:13,fontFamily}}>{t.downloadReport}</button>
                 </div>
               )}
