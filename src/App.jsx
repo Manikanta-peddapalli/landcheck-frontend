@@ -94,7 +94,7 @@ const SUGGESTED_QUESTIONS = {
 };
 
 const API_BASE = "https://landcheck-backend-4dym.onrender.com/api";
-const MEEBHOOMI_API = "https://landcheck-meebhoomi.railway.app"; // Update after Railway deploy
+const MEEBHOOMI_API = "https://landcheck-meebhoomi.onrender.com";
 
 
 const STYLES = `
