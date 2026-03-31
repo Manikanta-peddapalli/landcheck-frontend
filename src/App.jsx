@@ -1011,24 +1011,23 @@ function LandScanner({onClose}){
             if (res.ok) autoResult = await res.json();
           } catch(e) { console.log("Scraper not deployed yet:", e.message); }
 
-          // If scraper returned full land details directly
-          if (autoResult?.success && autoResult?.surveyNumber && autoResult?.ownerName) {
+          // If APSAC found exact plot directly → show immediately!
+          if (autoResult?.success && autoResult?.exactPlot) {
             setSelected({
-              ...autoResult,
+              ...autoResult.exactPlot,
               lat, lon,
-              riskLevel: autoResult.riskLevel || "Low",
-              riskScore: autoResult.riskScore || 15,
-              boundaries: autoResult.boundaries || {north:"—",south:"—",east:"—",west:"—"},
-              previousOwners: autoResult.previousOwners || [],
+              village: autoResult.location?.village || "",
+              mandal: autoResult.location?.mandal || "",
+              district: autoResult.location?.district || "",
             });
             setStep("detail");
             return;
           }
 
-          // If scraper returned village + plots
-          if (autoResult?.success && autoResult?.villagePlots) {
+          // Scraper returned village plots list
+          if (autoResult?.success && autoResult?.plots?.length > 0) {
             setGpsData({...autoResult.location, lat, lon});
-            setPlots(autoResult.villagePlots.length > 0 ? autoResult.villagePlots : DEMO_PLOTS);
+            setPlots(autoResult.plots);
             setStep("plots_list");
             return;
           }
