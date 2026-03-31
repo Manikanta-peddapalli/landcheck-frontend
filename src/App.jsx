@@ -1092,9 +1092,11 @@ function LandScanner({onClose}){
     : plots;
 
   const selectPlot = (plot) => {
-    // Add demo details if not present
     const full = {
       ...plot,
+      // Add GPS coordinates so map buttons work!
+      lat: gpsData?.lat || plot.lat || 14.4426,
+      lon: gpsData?.lon || plot.lon || 79.9865,
       soilType: plot.soilType || "Black Cotton Soil",
       waterSource: plot.waterSource || "Canal Irrigation",
       cropGrown: plot.cropGrown || "Paddy",
