@@ -1014,6 +1014,49 @@ function LandScanner({onClose}){
     return res.text();
   };
 
+  // AP District name corrections (Nominatim → MeeBhoomi)
+  const DISTRICT_MAP = {
+    "annamayya": ["annamayya","YSR","kadapa","cuddapah"],
+    "spsr nellore": ["nellore","spsr","s.p.s.r"],
+    "dr. b.r. ambedkar konaseema": ["konaseema","east godavari","dr br"],
+    "alluri sitharama raju": ["alluri","vizianagaram","visakhapatnam"],
+    "parvathipuram manyam": ["parvathipuram","vizianagaram"],
+    "ntr": ["ntr","krishna","vijayawada"],
+    "bapatla": ["bapatla","guntur"],
+    "sri sathya sai": ["sri sathya","anantapur","anantapuramu"],
+    "tirupati": ["tirupati","chittoor"],
+    "kakinada": ["kakinada","east godavari"],
+  };
+
+  // Smart district matcher
+  const matchDistrict = (nominatimDistrict, mbOptions) => {
+    const nd = nominatimDistrict.toLowerCase().trim();
+    
+    // Direct match first
+    let match = mbOptions.find(o => 
+      o.t.toLowerCase().replace(/\s+/g,"").includes(nd.replace(/\s+/g,"").substring(0,5)) ||
+      nd.includes(o.t.toLowerCase().replace(/\s+/g,"").substring(0,5))
+    );
+    if(match) return match;
+    
+    // Try word by word
+    const words = nd.split(" ").filter(w => w.length > 3);
+    for(const word of words){
+      match = mbOptions.find(o => o.t.toLowerCase().includes(word));
+      if(match) return match;
+    }
+    
+    // Try mapped alternatives
+    for(const [key, alts] of Object.entries(DISTRICT_MAP)){
+      if(alts.some(a => nd.includes(a) || a.includes(nd.split(" ")[0]))){
+        match = mbOptions.find(o => o.t.toLowerCase().includes(key.split(" ")[0]));
+        if(match) return match;
+      }
+    }
+    
+    return null;
+  };
+
   // STEP 1: GPS → Village → Load MeeBhoomi → Get districts
   const handleGPS = () => {
     setStep("gps_loading");
@@ -1046,12 +1089,15 @@ function LandScanner({onClose}){
           const distOpts = getOptions(html1, "ctl00_ContentPlaceHolder1_DropDownList1");
           console.log("Districts:", distOpts.length);
 
-          // Match district
-          const distMatch = distOpts.find(o=>
-            o.t.toLowerCase().includes(geo.district.toLowerCase().split(" ")[0]) ||
-            geo.district.toLowerCase().includes(o.t.toLowerCase().split(" ")[0])
-          );
-          if(!distMatch){ setError(`District "${geo.district}" not found in MeeBhoomi`); setStep("error"); return; }
+          // Match district using smart matcher
+          const distMatch = matchDistrict(geo.district, distOpts);
+          console.log("District match result:", distMatch?.t, "for:", geo.district);
+          console.log("Available districts:", distOpts.map(o=>o.t).slice(0,10));
+          if(!distMatch){ 
+            setError(`District "${geo.district}" not matched. Available: ${distOpts.slice(1,5).map(o=>o.t).join(", ")}. Please try manual entry.`); 
+            setStep("error"); 
+            return; 
+          }
           console.log("District:", distMatch.t);
 
           // Select district → get mandals
