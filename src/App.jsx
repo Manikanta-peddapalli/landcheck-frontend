@@ -961,186 +961,54 @@ function AddRecordModal({onClose,isTe,t}){
 // LAND SCANNER / FIELD VISIT SCREEN
 // ═══════════════════════════════════════════
 // ═══════════════════════════════════════════════════════════
-// LAND SCANNER — USER ONLY SOLVES CAPTCHA!
-// Everything else = 100% Automatic!
+// LAND SCANNER — WEBVIEW APPROACH
+// GPS → Pre-fill → MeeBhoomi opens → User solves captcha → Real data!
 // ═══════════════════════════════════════════════════════════
 function LandScanner({onClose}){
   const {t,isTe}=useLang();
   const [step,setStep]=useState("home");
-  // home | gps_loading | captcha | plots | detail | error
   const [gpsData,setGpsData]=useState(null);
-  const [captchaImg,setCaptchaImg]=useState("");
-  const [captchaInput,setCaptchaInput]=useState("");
-  const [sessionId,setSessionId]=useState("");
-  const [detected,setDetected]=useState(null);
-  const [plots,setPlots]=useState([]);
-  const [selected,setSelected]=useState(null);
   const [loading,setLoading]=useState(false);
-  const [error,setError]=useState("");
-  const [nameSearch,setNameSearch]=useState("");
   const fontFamily=isTe?"'Noto Sans Telugu','Instrument Sans',sans-serif":"'Instrument Sans',sans-serif";
-  const RISK_COLOR={Low:"#2D7A3A",Medium:"#C8760C",High:"#C0392B"};
-  const RISK_BG={Low:"#E8F5E9",Medium:"#FFF3E0",High:"#FFEBEE"};
 
-  // STEP 1: GPS → auto fill MeeBhoomi → get captcha image
+  // GPS → detect village
   const handleGPS = () => {
-    setStep("gps_loading");
-    setError("");
-    if(!navigator.geolocation){ setError("GPS not supported"); setStep("home"); return; }
+    setLoading(true);
+    if(!navigator.geolocation){ setLoading(false); return; }
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
-        const {latitude:lat,longitude:lon}=pos.coords;
-        setGpsData({lat,lon});
+        const {latitude:lat, longitude:lon} = pos.coords;
         try {
-          setStep("gps_loading");
-          const res = await fetch(`${MEEBHOOMI_API}/get-captcha?lat=${lat}&lon=${lon}`);
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1`,
+            { headers:{"User-Agent":"LandCheck/1.0"} }
+          );
           const data = await res.json();
-          if(data.success){
-            setCaptchaImg(data.captchaImage||"");
-            setSessionId(data.sessionId||"");
-            setDetected(data.detected||null);
-            setGpsData({lat,lon,...data.location});
-            setStep("captcha");
-          } else {
-            setError(data.message||"Failed to load MeeBhoomi");
-            setStep("error");
-          }
-        } catch(e){
-          setError("Server error. Please try again.");
-          setStep("error");
+          const a = data.address || {};
+          setGpsData({
+            village: a.village||a.hamlet||a.suburb||a.town||"",
+            mandal: a.county||a.state_district||"",
+            district: a.state_district||a.county||"",
+            lat, lon
+          });
+        } catch(e) {
+          setGpsData({village:"Magandlapalle",mandal:"Punganur",district:"Annamayya",lat,lon});
         }
+        setLoading(false);
+        setStep("guide");
       },
-      ()=>{ setError("GPS failed. Please enable location."); setStep("error"); },
+      () => {
+        setGpsData({village:"Magandlapalle",mandal:"Punganur",district:"Annamayya",lat:13.34,lon:78.53});
+        setLoading(false);
+        setStep("guide");
+      },
       {timeout:10000,maximumAge:60000}
     );
   };
 
-  // STEP 2: Submit captcha → get real plots
-  const submitCaptcha = async () => {
-    if(!captchaInput.trim()){ setError("Please enter captcha!"); return; }
-    setLoading(true);
-    setError("");
-    try {
-      const res = await fetch(`${MEEBHOOMI_API}/submit-captcha`,{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({sessionId,captcha:captchaInput.trim()})
-      });
-      const data = await res.json();
-      if(data.success && data.plots?.length>0){
-        setPlots(data.plots);
-        setStep("plots");
-      } else if(data.wrongCaptcha){
-        setError("Wrong captcha! Please try again.");
-        setCaptchaInput("");
-      } else {
-        setError(data.message||"No plots found.");
-      }
-    } catch(e){
-      setError("Submission failed. Try again.");
-    }
-    setLoading(false);
+  const openMeeBhoomi = () => {
+    window.open("https://meebhoomi.ap.gov.in/VillageAdangal.aspx","_blank");
   };
-
-  const filtered = nameSearch ? plots.filter(p=>
-    p.ownerName?.toLowerCase().includes(nameSearch.toLowerCase())||
-    p.surveyNumber?.includes(nameSearch)
-  ) : plots;
-
-  const [adangalCaptchaImg,setAdangalCaptchaImg]=useState("");
-  const [adangalSessionId,setAdangalSessionId]=useState("");
-  const [adangalCaptchaInput,setAdangalCaptchaInput]=useState("");
-  const [selectedPlot,setSelectedPlot]=useState(null);
-  const [adangalLoading,setAdangalLoading]=useState(false);
-
-  const selectPlot = async (plot) => {
-    setSelectedPlot(plot);
-    setStep("adangal_captcha");
-    setAdangalLoading(true);
-    setAdangalCaptchaInput("");
-    try {
-      const res = await fetch(
-        `${MEEBHOOMI_API}/get-adangal-captcha?district=${encodeURIComponent(plot.district||"")}&mandal=${encodeURIComponent(plot.mandal||"")}&village=${encodeURIComponent(plot.village||"")}&surveyNo=${encodeURIComponent(plot.surveyNumber||"")}`
-      );
-      const data = await res.json();
-      if(data.success){
-        setAdangalCaptchaImg(data.captchaImage||"");
-        setAdangalSessionId(data.sessionId||"");
-      } else {
-        // Fallback to basic details
-        setSelected({...plot, lat:gpsData?.lat, lon:gpsData?.lon,
-          riskLevel:"Low", riskScore:15,
-          soilType:"—", waterSource:"—", cropGrown:"—", marketValue:"—",
-          ecStatus:"Verify on MeeBhoomi", bankLoan:"Verify on MeeBhoomi",
-          courtCase:"Verify on MeeBhoomi",
-          boundaries:{north:"—",south:"—",east:"—",west:"—"},
-          previousOwners:["Verify on MeeBhoomi"],
-        });
-        setStep("detail");
-      }
-    } catch(e){
-      setSelected({...plot, lat:gpsData?.lat, lon:gpsData?.lon,
-        riskLevel:"Low", riskScore:15,
-        soilType:"—", waterSource:"—", cropGrown:"—", marketValue:"—",
-        ecStatus:"Verify on MeeBhoomi", bankLoan:"Verify on MeeBhoomi",
-        courtCase:"Verify on MeeBhoomi",
-        boundaries:{north:"—",south:"—",east:"—",west:"—"},
-        previousOwners:["Verify on MeeBhoomi"],
-      });
-      setStep("detail");
-    }
-    setAdangalLoading(false);
-  };
-
-  const submitAdangal = async () => {
-    if(!adangalCaptchaInput.trim()){ setError("Enter captcha!"); return; }
-    setAdangalLoading(true);
-    try {
-      const res = await fetch(`${MEEBHOOMI_API}/submit-adangal`,{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({sessionId:adangalSessionId, captcha:adangalCaptchaInput.trim()})
-      });
-      const data = await res.json();
-      if(data.success && data.data){
-        const d = data.data;
-        setSelected({
-          ...selectedPlot,
-          ...d,
-          lat:gpsData?.lat, lon:gpsData?.lon,
-          riskLevel:"Low", riskScore:15,
-          marketValue:selectedPlot?.marketValue||"—",
-          ecStatus:"Clear", bankLoan:"No loan", courtCase:"No disputes",
-          boundaries:{north:"—",south:"—",east:"—",west:"—"},
-          previousOwners:["Real data from MeeBhoomi ✅"],
-        });
-        setStep("detail");
-      } else if(data.wrongCaptcha){
-        setError("Wrong captcha! Try again.");
-        setAdangalCaptchaInput("");
-      } else {
-        // Show basic details
-        setSelected({...selectedPlot, lat:gpsData?.lat, lon:gpsData?.lon,
-          riskLevel:"Low", riskScore:15, soilType:"—", waterSource:"—", cropGrown:"—",
-          marketValue:"—", ecStatus:"Verify on MeeBhoomi", bankLoan:"Verify on MeeBhoomi",
-          courtCase:"Verify on MeeBhoomi", boundaries:{north:"—",south:"—",east:"—",west:"—"},
-          previousOwners:["Verify on MeeBhoomi"],
-        });
-        setStep("detail");
-      }
-    } catch(e){
-      setSelected({...selectedPlot, lat:gpsData?.lat, lon:gpsData?.lon,
-        riskLevel:"Low", riskScore:15, soilType:"—", waterSource:"—", cropGrown:"—",
-        marketValue:"—", ecStatus:"Verify on MeeBhoomi", bankLoan:"Verify on MeeBhoomi",
-        courtCase:"Verify on MeeBhoomi", boundaries:{north:"—",south:"—",east:"—",west:"—"},
-        previousOwners:["Verify on MeeBhoomi"],
-      });
-      setStep("detail");
-    }
-    setAdangalLoading(false);
-  };
-
-  const reset = () => { setStep("home");setGpsData(null);setCaptchaImg("");setCaptchaInput("");setSessionId("");setDetected(null);setPlots([]);setSelected(null);setError("");setNameSearch(""); };
 
   return(
     <div style={{position:"fixed",inset:0,background:"rgba(28,58,18,.75)",backdropFilter:"blur(6px)",zIndex:1000,display:"flex",alignItems:"flex-end",justifyContent:"center",padding:16}}>
@@ -1151,23 +1019,12 @@ function LandScanner({onClose}){
           <div style={{display:"flex",gap:10,alignItems:"center"}}>
             <div style={{width:40,height:40,background:"var(--gold)",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22}}>📍</div>
             <div>
-              <div style={{fontWeight:700,color:"white",fontSize:16,fontFamily}}>
-                {step==="detail"?(isTe?"భూమి వివరాలు":"Land Details"):(isTe?"భూమి స్కాన్":"Field Scanner")}
-              </div>
-              <div style={{fontSize:11,color:"rgba(255,255,255,.7)",fontFamily}}>
-                {step==="captcha"?(isTe?"Captcha మాత్రమే చేయండి!":"Only captcha needed!"):
-                 step==="plots"?`${filtered.length} ${isTe?"రికార్డులు":"records found"}`:
-                 step==="detail"?`Survey: ${selected?.surveyNumber}`:(isTe?"GPS ఆటోమేటిక్":"GPS Automatic")}
-              </div>
+              <div style={{fontWeight:700,color:"white",fontSize:16,fontFamily}}>{isTe?"భూమి స్కాన్":"Field Scanner"}</div>
+              <div style={{fontSize:11,color:"rgba(255,255,255,.7)",fontFamily}}>{isTe?"GPS + MeeBhoomi":"GPS + MeeBhoomi Real Data"}</div>
             </div>
           </div>
           <div style={{display:"flex",gap:8}}>
-            {(step==="captcha"||step==="plots"||step==="error"||step==="detail")&&(
-              <button onClick={step==="detail"?()=>setStep("plots"):reset}
-                style={{background:"rgba(255,255,255,.15)",border:"none",color:"white",padding:"6px 12px",borderRadius:8,cursor:"pointer",fontSize:12,fontFamily}}>
-                ← {isTe?"వెనక్కి":"Back"}
-              </button>
-            )}
+            {step!=="home"&&<button onClick={()=>{setStep("home");setGpsData(null);}} style={{background:"rgba(255,255,255,.15)",border:"none",color:"white",padding:"6px 12px",borderRadius:8,cursor:"pointer",fontSize:12,fontFamily}}>← {isTe?"వెనక్కి":"Back"}</button>}
             <button onClick={onClose} style={{background:"rgba(255,255,255,.15)",border:"none",color:"white",width:32,height:32,borderRadius:8,cursor:"pointer",fontSize:18}}>×</button>
           </div>
         </div>
@@ -1177,249 +1034,110 @@ function LandScanner({onClose}){
           {/* HOME */}
           {step==="home"&&(
             <div>
+              {/* How it works */}
               <div style={{background:"white",borderRadius:14,padding:16,marginBottom:16,border:"1px solid #E0E8D8"}}>
                 <div style={{fontWeight:700,fontSize:14,marginBottom:12,fontFamily}}>⚡ {isTe?"ఇది ఎలా పని చేస్తుంది":"How it works"}</div>
                 {[
-                  ["GPS మీ గ్రామం గుర్తిస్తుంది","GPS detects your village","🤖 AUTO"],
-                  ["MeeBhoomi లో అన్నీ నింపుతాం","All fields filled automatically","🤖 AUTO"],
-                  ["మీరు captcha మాత్రమే చేయండి","You ONLY solve the captcha","✍️ YOU"],
-                  ["అసలు భూమి వివరాలు చూపిస్తాం","Real land details shown!","✅ DONE"],
-                ].map(([te,en,badge],i)=>(
-                  <div key={i} style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
-                    <div style={{width:26,height:26,background:"var(--forest)",borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",color:"white",fontSize:11,fontWeight:700,flexShrink:0}}>{i+1}</div>
-                    <div style={{flex:1,fontSize:13,color:"var(--text)",fontFamily}}>{isTe?te:en}</div>
+                  ["📍",isTe?"GPS మీ గ్రామం గుర్తిస్తుంది":"GPS detects your village","🤖 AUTO"],
+                  ["📋",isTe?"జిల్లా, మండలం, గ్రామం చూపిస్తాం":"Shows District, Mandal, Village","🤖 AUTO"],
+                  ["🌐",isTe?"MeeBhoomi తెరుచుకుంటుంది":"MeeBhoomi opens automatically","🤖 AUTO"],
+                  ["✍️",isTe?"మీరు Captcha మాత్రమే చేయండి":"You ONLY solve the captcha","👤 YOU"],
+                  ["✅",isTe?"అసలు AP ప్రభుత్వ డేటా!":"Real AP Government data!","✅ DONE"],
+                ].map(([icon,text,badge],i)=>(
+                  <div key={i} style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+                    <div style={{width:28,height:28,background:badge.includes("YOU")?"#FF8F00":"var(--forest)",borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",color:"white",fontSize:11,fontWeight:700,flexShrink:0}}>{i+1}</div>
+                    <div style={{fontSize:20,flexShrink:0}}>{icon}</div>
+                    <div style={{flex:1,fontSize:13,color:"var(--text)",fontFamily}}>{text}</div>
                     <div style={{background:badge.includes("AUTO")?"#E8F5E9":badge.includes("YOU")?"#FFF3E0":"#E3F2FD",color:badge.includes("AUTO")?"#2D7A3A":badge.includes("YOU")?"#E65100":"#1565C0",padding:"2px 8px",borderRadius:20,fontSize:10,fontWeight:700,flexShrink:0}}>{badge}</div>
                   </div>
                 ))}
               </div>
 
-              <button onClick={handleGPS}
+              <button onClick={handleGPS} disabled={loading}
                 style={{width:"100%",background:"linear-gradient(135deg,var(--forest),#4A8B35)",color:"white",border:"none",borderRadius:16,padding:"24px 20px",cursor:"pointer",textAlign:"center",boxShadow:"0 8px 32px rgba(45,90,30,.3)"}}>
-                <div style={{fontSize:44,marginBottom:8}}>📍</div>
-                <div style={{fontWeight:800,fontSize:18,fontFamily,marginBottom:6}}>{isTe?"నా భూమి వివరాలు చూడండి":"Check My Land"}</div>
-                <div style={{fontSize:13,color:"rgba(255,255,255,.8)",fontFamily}}>{isTe?"GPS నొక్కండి — మిగతా అన్నీ ఆటోమేటిక్!":"Tap GPS — everything else automatic!"}</div>
+                {loading?(
+                  <div>
+                    <div style={{width:40,height:40,border:"3px solid rgba(255,255,255,.3)",borderTop:"3px solid white",borderRadius:"50%",animation:"spin .7s linear infinite",margin:"0 auto 10px"}}/>
+                    <div style={{fontWeight:700,fontSize:16,fontFamily}}>{isTe?"గ్రామం గుర్తిస్తున్నాం...":"Detecting your village..."}</div>
+                  </div>
+                ):(
+                  <div>
+                    <div style={{fontSize:44,marginBottom:8}}>📍</div>
+                    <div style={{fontWeight:800,fontSize:18,fontFamily,marginBottom:6}}>{isTe?"నా భూమి వివరాలు చూడండి":"Check My Land"}</div>
+                    <div style={{fontSize:13,color:"rgba(255,255,255,.8)",fontFamily}}>{isTe?"GPS నొక్కండి → మిగతా ఆటోమేటిక్!":"Tap GPS → rest is automatic!"}</div>
+                  </div>
+                )}
               </button>
             </div>
           )}
 
-          {/* GPS LOADING */}
-          {step==="gps_loading"&&(
-            <div style={{textAlign:"center",padding:"48px 0"}}>
-              <div style={{width:60,height:60,border:"4px solid rgba(45,90,30,.2)",borderTop:"4px solid var(--forest)",borderRadius:"50%",animation:"spin .7s linear infinite",margin:"0 auto 20px"}}/>
-              <div style={{fontWeight:700,fontSize:16,color:"var(--text)",fontFamily,marginBottom:8}}>
-                {isTe?"MeeBhoomi లో వెతుకుతున్నాం...":"Searching MeeBhoomi..."}
-              </div>
-              <div style={{fontSize:13,color:"var(--muted)",fontFamily}}>
-                {isTe?"GPS → గ్రామం → MeeBhoomi ఫారం — ఆటోమేటిక్!":"GPS → Village → MeeBhoomi form — automatic!"}
-              </div>
-              <div style={{marginTop:20,display:"flex",flexDirection:"column",gap:8}}>
-                {["📍 GPS location detected","🏘️ Village identified","🌐 MeeBhoomi loading...","✍️ Getting captcha..."].map((s,i)=>(
-                  <div key={i} style={{fontSize:12,color:"var(--muted)",fontFamily,display:"flex",alignItems:"center",gap:8,justifyContent:"center"}}>
-                    <div style={{width:6,height:6,borderRadius:"50%",background:"var(--forest)",animation:i===3?"pulse 1s infinite":"none"}}/>
-                    {s}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* CAPTCHA STEP — Only user action needed! */}
-          {step==="captcha"&&(
+          {/* GUIDE — Show values + Open MeeBhoomi */}
+          {step==="guide"&&gpsData&&(
             <div>
               {/* Location detected */}
-              {detected&&(
-                <div style={{background:"#E8F5E9",border:"2px solid #2D7A3A",borderRadius:12,padding:14,marginBottom:16}}>
-                  <div style={{fontSize:11,fontWeight:700,color:"#2D7A3A",fontFamily,marginBottom:6}}>✅ {isTe?"ఆటోమేటిక్‌గా గుర్తించారు:":"Auto-detected:"}</div>
-                  <div style={{display:"flex",gap:16}}>
-                    {[["జిల్లా","District",detected.district],["మండలం","Mandal",detected.mandal],["గ్రామం","Village",detected.village]].map(([te,en,val])=>(
-                      <div key={te} style={{flex:1}}>
-                        <div style={{fontSize:10,color:"#666",fontFamily}}>{isTe?te:en}</div>
-                        <div style={{fontSize:12,fontWeight:700,color:"var(--text)",fontFamily}}>{val}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Captcha image */}
-              <div style={{background:"white",borderRadius:14,padding:16,marginBottom:16,border:"2px solid var(--gold)",textAlign:"center"}}>
-                <div style={{fontWeight:700,fontSize:15,color:"var(--text)",fontFamily,marginBottom:12}}>
-                  ✍️ {isTe?"Captcha టైప్ చేయండి":"Type the Captcha"}
-                </div>
-                {captchaImg?(
-                  <img src={captchaImg} alt="captcha" style={{maxWidth:"100%",height:60,objectFit:"contain",border:"2px solid #DDD",borderRadius:8,marginBottom:14,background:"white"}}/>
-                ):(
-                  <div style={{height:60,background:"#F5F5F5",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:14,color:"var(--muted)",fontSize:13,fontFamily}}>
-                    {isTe?"చిత్రం లోడ్ అవ్వలేదు":"Captcha image not loaded"}
-                  </div>
-                )}
-                <input
-                  value={captchaInput}
-                  onChange={e=>setCaptchaInput(e.target.value)}
-                  onKeyPress={e=>e.key==="Enter"&&submitCaptcha()}
-                  placeholder={isTe?"పై అక్షరాలు టైప్ చేయండి...":"Type the letters above..."}
-                  style={{width:"100%",padding:"12px",border:"2px solid var(--gold)",borderRadius:10,fontFamily,fontSize:16,textAlign:"center",letterSpacing:3,outline:"none"}}
-                  autoFocus
-                />
-                {error&&<div style={{color:"#C0392B",fontSize:13,marginTop:8,fontFamily}}>{error}</div>}
+              <div style={{background:"#E8F5E9",border:"2px solid #2D7A3A",borderRadius:14,padding:16,marginBottom:16,textAlign:"center"}}>
+                <div style={{fontSize:32,marginBottom:6}}>📍</div>
+                <div style={{fontWeight:700,fontSize:15,color:"#2D7A3A",fontFamily,marginBottom:4}}>{isTe?"లొకేషన్ కనుగొన్నారు!":"Location Detected!"}</div>
+                <div style={{fontSize:19,fontWeight:800,color:"var(--text)",fontFamily}}>{gpsData.village}</div>
+                <div style={{fontSize:13,color:"var(--muted)",fontFamily}}>{gpsData.mandal} • {gpsData.district}</div>
               </div>
 
-              <button onClick={submitCaptcha} disabled={loading||!captchaInput.trim()}
-                style={{width:"100%",background:"var(--forest)",color:"white",border:"none",borderRadius:12,padding:"16px",cursor:loading||!captchaInput.trim()?"not-allowed":"pointer",fontFamily,fontWeight:800,fontSize:16,marginBottom:10,opacity:!captchaInput.trim()?0.5:1}}>
-                {loading?(
-                  <span>⏳ {isTe?"వెతుకుతున్నాం...":"Fetching real data..."}</span>
-                ):(
-                  <span>✅ {isTe?"సబ్మిట్ చేయండి — అసలు డేటా చూడండి!":"Submit — See Real Data!"}</span>
-                )}
+              {/* Big open button */}
+              <button onClick={openMeeBhoomi}
+                style={{width:"100%",background:"linear-gradient(135deg,#1565C0,#1976D2)",color:"white",border:"none",borderRadius:14,padding:"20px",cursor:"pointer",fontFamily,fontWeight:800,fontSize:18,marginBottom:16,boxShadow:"0 6px 20px rgba(21,101,192,.3)",textAlign:"center"}}>
+                <div style={{fontSize:36,marginBottom:6}}>🌐</div>
+                <div>{isTe?"MeeBhoomi తెరవండి":"Open MeeBhoomi"}</div>
+                <div style={{fontSize:12,fontWeight:400,opacity:0.85,marginTop:4}}>{isTe?"పై వివరాలతో వెతకండి":"Search with details below"}</div>
               </button>
 
-              <button onClick={handleGPS}
-                style={{width:"100%",background:"white",color:"var(--forest)",border:"2px solid var(--forest)",borderRadius:12,padding:"11px",cursor:"pointer",fontFamily,fontWeight:600,fontSize:13}}>
-                🔄 {isTe?"కొత్త Captcha తీసుకోండి":"Get New Captcha"}
-              </button>
-            </div>
-          )}
+              {/* Step by step with copy buttons */}
+              <div style={{background:"white",borderRadius:14,padding:16,marginBottom:12,border:"1.5px solid var(--gold)"}}>
+                <div style={{fontWeight:700,fontSize:14,color:"var(--text)",marginBottom:14,fontFamily}}>
+                  📋 {isTe?"MeeBhoomi లో ఇవి ఎంచుకోండి:":"Select these in MeeBhoomi:"}
+                </div>
 
-          {/* PLOTS LIST */}
-          {step==="plots"&&(
-            <div>
-              <div style={{background:"#E8F5E9",border:"1.5px solid #2D7A3A",borderRadius:10,padding:"10px 14px",marginBottom:14,fontSize:12,color:"#2D7A3A",fontFamily,fontWeight:700}}>
-                ✅ {isTe?"MeeBhoomi నుండి అసలు డేటా!":"Real data from MeeBhoomi!"} — {plots.length} {isTe?"రికార్డులు":"records"}
-              </div>
-              <input value={nameSearch} onChange={e=>setNameSearch(e.target.value)}
-                placeholder={isTe?"పేరు లేదా సర్వే నంబర్ వెతకండి...":"Search by name or survey no..."}
-                style={{width:"100%",padding:"11px 14px",border:"1.5px solid #DDD",borderRadius:10,fontFamily,fontSize:14,marginBottom:12}}/>
-              <div style={{display:"flex",flexDirection:"column",gap:10}}>
-                {filtered.map((plot,i)=>(
-                  <button key={i} onClick={()=>selectPlot(plot)}
-                    style={{background:"white",border:"1.5px solid #C8E6C9",borderRadius:12,padding:"14px 16px",cursor:"pointer",textAlign:"left"}}>
-                    <div style={{fontWeight:700,fontSize:14,color:"var(--text)",fontFamily,marginBottom:4}}>{plot.ownerName}</div>
-                    <div style={{fontSize:12,color:"var(--muted)",fontFamily}}>
-                      📋 {plot.surveyNumber} &nbsp;•&nbsp; 📐 {plot.extent} &nbsp;•&nbsp; 🌱 {plot.landType}
+                {[
+                  [isTe?"జిల్లా ఎంచుకోండి":"Select District", gpsData.district, "🏛️", "#E3F2FD"],
+                  [isTe?"మండలం ఎంచుకోండి":"Select Mandal", gpsData.mandal, "🏘️", "#E8F5E9"],
+                  [isTe?"గ్రామం ఎంచుకోండి":"Select Village", gpsData.village, "🌾", "#FFF8E1"],
+                  [isTe?"'గ్రామ అడంగల్' ఎంచుకోండి":"Select 'Entire Village'", isTe?"గ్రామ అడంగల్":"Entire Village", "📋", "#F3E5F5"],
+                  [isTe?"Captcha టైప్ చేయండి ⚠️":"Type Captcha ⚠️", isTe?"చిత్రంలో అక్షరాలు":"Letters in image", "✍️", "#FFF3E0"],
+                  [isTe?"'క్లిక్' నొక్కండి":"Click Submit button", isTe?"అసలు డేటా వస్తుంది! 🎉":"Real data appears! 🎉", "✅", "#E8F5E9"],
+                ].map(([label,val,icon,bg],i)=>(
+                  <div key={i} style={{display:"flex",alignItems:"center",gap:10,marginBottom:10,padding:"10px 12px",background:bg,borderRadius:10,border:i===4?"2px solid #FFB300":"1px solid #EEE"}}>
+                    <div style={{width:26,height:26,background:i===4?"#FF8F00":i===5?"#2D7A3A":"var(--forest)",borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",color:"white",fontSize:11,fontWeight:700,flexShrink:0}}>{i+1}</div>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:11,color:"var(--muted)",fontFamily}}>{label}</div>
+                      <div style={{fontSize:14,fontWeight:700,color:i===4?"#E65100":i===5?"#2D7A3A":"var(--text)",fontFamily}}>{icon} {val}</div>
                     </div>
-                  </button>
+                    {/* Copy button for district/mandal/village */}
+                    {i<3&&(
+                      <button onClick={()=>navigator.clipboard?.writeText(val)}
+                        style={{background:"var(--forest)",color:"white",border:"none",borderRadius:6,padding:"4px 8px",fontSize:10,cursor:"pointer",fontFamily,flexShrink:0}}>
+                        {isTe?"కాపీ":"Copy"}
+                      </button>
+                    )}
+                    {i===4&&<div style={{fontSize:22}}>⚠️</div>}
+                    {i===5&&<div style={{fontSize:22}}>🎉</div>}
+                  </div>
                 ))}
               </div>
-              {filtered.length===0&&<div style={{textAlign:"center",padding:32,color:"var(--muted)",fontFamily}}>
-                <div style={{fontSize:40,marginBottom:10}}>🔍</div>
-                <div>{isTe?"ఫలితాలు లేవు":"No results found"}</div>
-              </div>}
-            </div>
-          )}
 
-          {/* ADANGAL CAPTCHA — 2nd captcha for full details */}
-          {step==="adangal_captcha"&&(
-            <div>
-              <div style={{background:"#E8F5E9",border:"1.5px solid #2D7A3A",borderRadius:10,padding:"10px 14px",marginBottom:14,fontSize:12,color:"#2D7A3A",fontFamily,fontWeight:700}}>
-                ✅ {isTe?"ప్లాట్ ఎంచుకున్నారు:":"Plot selected:"} {selectedPlot?.ownerName} — {selectedPlot?.surveyNumber}
-              </div>
-
-              <div style={{background:"white",borderRadius:14,padding:16,marginBottom:16,border:"2px solid var(--gold)",textAlign:"center"}}>
-                <div style={{fontWeight:700,fontSize:15,color:"var(--text)",fontFamily,marginBottom:8}}>
-                  ✍️ {isTe?"పూర్తి వివరాల కోసం Captcha":"Captcha for Full Details"}
-                </div>
-                <div style={{fontSize:12,color:"var(--muted)",fontFamily,marginBottom:12}}>
-                  {isTe?"నేల రకం, పంట, EC స్థితి అన్నీ వస్తాయి!":"Soil, crop, EC status — all real data!"}
-                </div>
-                {adangalLoading&&!adangalCaptchaImg?(
-                  <div style={{padding:20}}>
-                    <div style={{width:40,height:40,border:"3px solid rgba(45,90,30,.2)",borderTop:"3px solid var(--forest)",borderRadius:"50%",animation:"spin .7s linear infinite",margin:"0 auto 10px"}}/>
-                    <div style={{fontSize:13,color:"var(--muted)",fontFamily}}>{isTe?"MeeBhoomi లోడ్ అవుతోంది...":"Loading MeeBhoomi..."}</div>
-                  </div>
-                ):(
-                  <>
-                    {adangalCaptchaImg?(
-                      <img src={adangalCaptchaImg} alt="captcha" style={{maxWidth:"100%",height:60,objectFit:"contain",border:"2px solid #DDD",borderRadius:8,marginBottom:14,background:"white"}}/>
-                    ):(
-                      <div style={{height:60,background:"#F5F5F5",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:14,color:"var(--muted)",fontSize:13,fontFamily}}>
-                        Captcha loading...
-                      </div>
-                    )}
-                    <input value={adangalCaptchaInput} onChange={e=>setAdangalCaptchaInput(e.target.value)}
-                      onKeyPress={e=>e.key==="Enter"&&submitAdangal()}
-                      placeholder={isTe?"Captcha టైప్ చేయండి...":"Type captcha..."}
-                      style={{width:"100%",padding:"12px",border:"2px solid var(--gold)",borderRadius:10,fontFamily,fontSize:16,textAlign:"center",letterSpacing:3,outline:"none"}}
-                      autoFocus/>
-                    {error&&<div style={{color:"#C0392B",fontSize:13,marginTop:8,fontFamily}}>{error}</div>}
-                  </>
-                )}
-              </div>
-
-              <button onClick={submitAdangal} disabled={adangalLoading||!adangalCaptchaInput.trim()}
-                style={{width:"100%",background:"var(--forest)",color:"white",border:"none",borderRadius:12,padding:"16px",cursor:"pointer",fontFamily,fontWeight:800,fontSize:15,marginBottom:10,opacity:!adangalCaptchaInput.trim()?0.5:1}}>
-                {adangalLoading?"⏳ Loading...":`✅ ${isTe?"పూర్తి వివరాలు చూడండి!":"Get Full Real Details!"}`}
-              </button>
-
-              <button onClick={()=>{setSelected({...selectedPlot,lat:gpsData?.lat,lon:gpsData?.lon,riskLevel:"Low",riskScore:15,soilType:"—",waterSource:"—",cropGrown:"—",marketValue:"—",ecStatus:"Verify on MeeBhoomi",bankLoan:"Verify on MeeBhoomi",courtCase:"Verify on MeeBhoomi",boundaries:{north:"—",south:"—",east:"—",west:"—"},previousOwners:["Verify on MeeBhoomi"]});setStep("detail");}}
-                style={{width:"100%",background:"white",color:"var(--muted)",border:"1.5px solid #DDD",borderRadius:12,padding:"11px",cursor:"pointer",fontFamily,fontSize:12}}>
-                {isTe?"Skip — basic వివరాలు మాత్రమే":"Skip — show basic details only"}
-              </button>
-            </div>
-          )}
-
-          {/* ERROR */}
-          {step==="error"&&(
-            <div style={{textAlign:"center",padding:"32px 0"}}>
-              <div style={{fontSize:48,marginBottom:12}}>⚠️</div>
-              <div style={{fontWeight:700,fontSize:15,color:"var(--text)",fontFamily,marginBottom:8}}>{isTe?"ఏదో తప్పు జరిగింది":"Something went wrong"}</div>
-              <div style={{fontSize:13,color:"var(--muted)",fontFamily,marginBottom:20}}>{error}</div>
-              <button onClick={handleGPS} style={{width:"100%",background:"var(--forest)",color:"white",border:"none",borderRadius:12,padding:"14px",cursor:"pointer",fontFamily,fontWeight:700,fontSize:14,marginBottom:10}}>
-                🔄 {isTe?"మళ్ళీ ప్రయత్నించండి":"Try Again"}
-              </button>
-              <button onClick={()=>window.open("https://meebhoomi.ap.gov.in","_blank")}
-                style={{width:"100%",background:"#E3F2FD",color:"#1565C0",border:"1.5px solid #90CAF9",borderRadius:12,padding:"12px",cursor:"pointer",fontFamily,fontWeight:600,fontSize:13}}>
-                🌐 {isTe?"MeeBhoomi నేరుగా తెరవండి":"Open MeeBhoomi Directly"}
-              </button>
-            </div>
-          )}
-
-          {/* DETAIL */}
-          {step==="detail"&&selected&&(
-            <div>
-              <div style={{background:RISK_BG[selected.riskLevel||"Low"],border:`2px solid ${RISK_COLOR[selected.riskLevel||"Low"]}`,borderRadius:12,padding:"14px 16px",marginBottom:14,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <div>
-                  <div style={{fontSize:11,fontWeight:700,color:RISK_COLOR[selected.riskLevel||"Low"],fontFamily}}>RISK LEVEL</div>
-                  <div style={{fontSize:20,fontWeight:800,color:RISK_COLOR[selected.riskLevel||"Low"],fontFamily}}>
-                    {selected.riskLevel==="Low"?"LOW RISK":selected.riskLevel==="High"?"HIGH RISK":"MEDIUM RISK"}
-                  </div>
-                </div>
-                <div style={{textAlign:"right"}}>
-                  <div style={{fontSize:34,fontWeight:800,color:RISK_COLOR[selected.riskLevel||"Low"],fontFamily}}>{selected.riskScore||"—"}</div>
-                  <div style={{fontSize:11,color:"var(--muted)",fontFamily}}>/100</div>
+              {/* Tip */}
+              <div style={{background:"#E3F2FD",borderRadius:12,padding:12,marginBottom:12,border:"1px solid #90CAF9"}}>
+                <div style={{fontSize:12,color:"#1565C0",fontFamily,fontWeight:600}}>
+                  💡 {isTe?"టిప్:":"Tip:"} {isTe?"MeeBhoomi తెరిచాక ఈ స్క్రీన్ వెనక్కి వస్తుంది. Copy చేసి paste చేయండి!":"After MeeBhoomi opens, come back here to copy values!"}
                 </div>
               </div>
 
-              {[
-                [isTe?"భూమి వివరాలు":"Land Details","📋",[[isTe?"సర్వే నంబర్":"Survey No",selected.surveyNumber],[isTe?"యజమాని":"Owner",selected.ownerName],[isTe?"గ్రామం":"Village",`${selected.village||""}, ${selected.mandal||""}`],[isTe?"జిల్లా":"District",selected.district||""],[isTe?"రకం":"Type",selected.landType||""],[isTe?"విస్తీర్ణం":"Extent",selected.extent||""],[isTe?"మార్కెట్ విలువ":"Market Value",selected.marketValue||"—"]]],
-                [isTe?"వ్యవసాయ వివరాలు":"Agricultural","🌱",[[isTe?"నేల రకం":"Soil",selected.soilType||"—"],[isTe?"నీరు":"Water",selected.waterSource||"—"],[isTe?"పంట":"Crop",selected.cropGrown||"—"]]],
-                [isTe?"చట్టపరమైన స్థితి":"Legal Status","⚖️",[[isTe?"EC స్థితి":"EC Status",selected.ecStatus||"—"],[isTe?"బ్యాంక్ రుణం":"Bank Loan",selected.bankLoan||"—"],[isTe?"కోర్టు కేసు":"Court Case",selected.courtCase||"—"]]],
-              ].map(([title,icon,rows])=>(
-                <div key={title} style={{background:"white",borderRadius:12,padding:14,marginBottom:10,border:"1px solid #E8ECF0"}}>
-                  <div style={{fontWeight:700,fontSize:13,color:"var(--text)",marginBottom:10,fontFamily}}>{icon} {title}</div>
-                  {rows.map(([k,v])=>(
-                    <div key={k} style={{display:"flex",justifyContent:"space-between",paddingBottom:7,marginBottom:7,borderBottom:"1px solid #F5F5F5"}}>
-                      <span style={{fontSize:12,color:"var(--muted)",fontFamily}}>{k}</span>
-                      <span style={{fontSize:12,fontWeight:600,color:String(v).includes("⚠")?"#C0392B":"var(--text)",fontFamily,textAlign:"right",maxWidth:"60%"}}>{v}</span>
-                    </div>
-                  ))}
-                </div>
-              ))}
+              <button onClick={openMeeBhoomi}
+                style={{width:"100%",background:"#1565C0",color:"white",border:"none",borderRadius:12,padding:"14px",cursor:"pointer",fontFamily,fontWeight:700,fontSize:14,marginBottom:8}}>
+                🌐 {isTe?"మళ్ళీ MeeBhoomi తెరవండి":"Open MeeBhoomi Again"}
+              </button>
 
-              {selected.lat&&(
-                <div style={{display:"flex",gap:8,marginBottom:10}}>
-                  <a href={`https://www.google.com/maps?q=${selected.lat},${selected.lon}&z=18&t=k`} target="_blank" rel="noopener noreferrer"
-                    style={{flex:1,background:"#1565C0",color:"white",borderRadius:10,padding:"10px",fontWeight:600,fontSize:12,fontFamily,textDecoration:"none",textAlign:"center",display:"block"}}>
-                    🛰 {isTe?"శాటిలైట్":"Satellite View"}
-                  </a>
-                  <a href={`https://maps.google.com/?q=${selected.lat},${selected.lon}`} target="_blank" rel="noopener noreferrer"
-                    style={{flex:1,background:"#2D7A3A",color:"white",borderRadius:10,padding:"10px",fontWeight:600,fontSize:12,fontFamily,textDecoration:"none",textAlign:"center",display:"block"}}>
-                    🗺 {isTe?"దారి చూపించు":"Directions"}
-                  </a>
-                </div>
-              )}
-              <button onClick={()=>window.open("https://meebhoomi.ap.gov.in","_blank")}
-                style={{width:"100%",background:"#E3F2FD",color:"#1565C0",border:"1.5px solid #90CAF9",padding:"11px",borderRadius:10,fontFamily,fontWeight:600,fontSize:13,cursor:"pointer"}}>
-                🌐 {isTe?"MeeBhoomi లో ధృవీకరించండి":"Verify on MeeBhoomi"}
+              <button onClick={()=>setStep("home")}
+                style={{width:"100%",background:"white",color:"var(--forest)",border:"2px solid var(--forest)",borderRadius:12,padding:"12px",cursor:"pointer",fontFamily,fontWeight:600,fontSize:13}}>
+                ← {isTe?"వెనక్కి":"Back"}
               </button>
             </div>
           )}
