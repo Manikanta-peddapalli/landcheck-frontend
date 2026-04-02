@@ -989,6 +989,18 @@ function LandScanner({onClose}){
   const getOpts=(html,id)=>{const p=new DOMParser();const d=p.parseFromString(html,"text/html");const s=d.querySelector(`#${id}`);if(!s)return[];return Array.from(s.options).map(o=>({v:o.value,t:o.text.trim()})).filter(o=>o.v);};
   const mbPost=async(body)=>{const r=await fetch(PROXY+encodeURIComponent(MB),{method:"POST",body,headers:{"Content-Type":"application/x-www-form-urlencoded"}});return r.text();};
 
+  // All 26 AP Districts hardcoded as fallback
+  const AP_DISTRICTS = [
+    {v:"1",t:"Alluri Sitharama Raju"},{v:"2",t:"Anakapalli"},{v:"3",t:"Ananthapuramu"},
+    {v:"4",t:"Annamayya"},{v:"5",t:"Bapatla"},{v:"6",t:"Chittoor"},
+    {v:"7",t:"Dr. B.R. Ambedkar Konaseema"},{v:"8",t:"East Godavari"},{v:"9",t:"Eluru"},
+    {v:"10",t:"Guntur"},{v:"11",t:"Kakinada"},{v:"12",t:"Krishna"},{v:"13",t:"Kurnool"},
+    {v:"14",t:"Nandyal"},{v:"15",t:"SPSR Nellore"},{v:"16",t:"NTR"},{v:"17",t:"Palnadu"},
+    {v:"18",t:"Parvathipuram Manyam"},{v:"19",t:"Prakasam"},{v:"20",t:"Srikakulam"},
+    {v:"21",t:"Sri Sathya Sai"},{v:"22",t:"Tirupati"},{v:"23",t:"Visakhapatnam"},
+    {v:"24",t:"Vizianagaram"},{v:"25",t:"West Godavari"},{v:"26",t:"YSR Kadapa"},
+  ];
+
   const handleGPS=()=>{
     setStep("gps_loading");setError("");
     if(!navigator.geolocation){setError("GPS not supported");setStep("home");return;}
@@ -1000,20 +1012,38 @@ function LandScanner({onClose}){
         setGpsData({village:a.village||a.hamlet||a.town||"",mandal:a.county||"",district:a.state_district||"",lat,lon});
       }catch(e){setGpsData({village:"",mandal:"",district:"",lat,lon});}
       setStep("mb_loading");
+      // Load MeeBhoomi and get form fields + districts
       try{
         const html=await fetch(PROXY+encodeURIComponent(MB)).then(r=>r.text());
         setFormFields(parseForm(html));
-        setDistOpts(getOpts(html,"ctl00_ContentPlaceHolder1_DropDownList1"));
+        // Try to get districts from page, fallback to hardcoded
+        const fetchedDists = getOpts(html,"ctl00_ContentPlaceHolder1_DropDownList1");
+        if(fetchedDists.length > 0){
+          setDistOpts(fetchedDists);
+        } else {
+          // Hardcoded AP districts as fallback
+          setDistOpts(AP_DISTRICTS);
+        }
         setStep("select_dist");
-      }catch(e){setError("MeeBhoomi load failed: "+e.message);setStep("error");}
+      }catch(e){
+        // Even if fetch fails, show hardcoded districts
+        setDistOpts(AP_DISTRICTS);
+        setFormFields({vs:"",evv:"",vsg:""});
+        setStep("select_dist");
+      }
     },()=>{
       setGpsData({village:"",mandal:"",district:"",lat:13.34,lon:78.53});
       setStep("mb_loading");
       fetch(PROXY+encodeURIComponent(MB)).then(r=>r.text()).then(html=>{
         setFormFields(parseForm(html));
-        setDistOpts(getOpts(html,"ctl00_ContentPlaceHolder1_DropDownList1"));
+        const fetchedDists = getOpts(html,"ctl00_ContentPlaceHolder1_DropDownList1");
+        setDistOpts(fetchedDists.length > 0 ? fetchedDists : AP_DISTRICTS);
         setStep("select_dist");
-      }).catch(e=>{setError("Load failed: "+e.message);setStep("error");});
+      }).catch(e=>{
+        setDistOpts(AP_DISTRICTS);
+        setFormFields({vs:"",evv:"",vsg:""});
+        setStep("select_dist");
+      });
     },{timeout:10000,maximumAge:60000});
   };
 
