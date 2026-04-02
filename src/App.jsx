@@ -1047,7 +1047,7 @@ function LandScanner({onClose}){
                   <div key={i} style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
                     <div style={{width:28,height:28,background:badge.includes("YOU")?"#FF8F00":"var(--forest)",borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",color:"white",fontSize:11,fontWeight:700,flexShrink:0}}>{i+1}</div>
                     <div style={{fontSize:20,flexShrink:0}}>{icon}</div>
-                    <div style={{flex:1,fontSize:13,color:"var(--ink)",fontFamily}}>{text}</div>
+                    <div style={{flex:1,fontSize:13,color:"var(--text)",fontFamily}}>{text}</div>
                     <div style={{background:badge.includes("AUTO")?"#E8F5E9":badge.includes("YOU")?"#FFF3E0":"#E3F2FD",color:badge.includes("AUTO")?"#2D7A3A":badge.includes("YOU")?"#E65100":"#1565C0",padding:"2px 8px",borderRadius:20,fontSize:10,fontWeight:700,flexShrink:0}}>{badge}</div>
                   </div>
                 ))}
@@ -1078,7 +1078,7 @@ function LandScanner({onClose}){
               <div style={{background:"#E8F5E9",border:"2px solid #2D7A3A",borderRadius:14,padding:16,marginBottom:16,textAlign:"center"}}>
                 <div style={{fontSize:32,marginBottom:6}}>📍</div>
                 <div style={{fontWeight:700,fontSize:15,color:"#2D7A3A",fontFamily,marginBottom:4}}>{isTe?"లొకేషన్ కనుగొన్నారు!":"Location Detected!"}</div>
-                <div style={{fontSize:19,fontWeight:800,color:"var(--ink)",fontFamily}}>{gpsData.village}</div>
+                <div style={{fontSize:19,fontWeight:800,color:"var(--text)",fontFamily}}>{gpsData.village}</div>
                 <div style={{fontSize:13,color:"var(--muted)",fontFamily}}>{gpsData.mandal} • {gpsData.district}</div>
               </div>
 
@@ -1092,7 +1092,7 @@ function LandScanner({onClose}){
 
               {/* Step by step with copy buttons */}
               <div style={{background:"white",borderRadius:14,padding:16,marginBottom:12,border:"1.5px solid var(--gold)"}}>
-                <div style={{fontWeight:700,fontSize:14,color:"var(--ink)",marginBottom:14,fontFamily}}>
+                <div style={{fontWeight:700,fontSize:14,color:"var(--text)",marginBottom:14,fontFamily}}>
                   📋 {isTe?"MeeBhoomi లో ఇవి ఎంచుకోండి:":"Select these in MeeBhoomi:"}
                 </div>
 
@@ -1108,7 +1108,7 @@ function LandScanner({onClose}){
                     <div style={{width:26,height:26,background:i===4?"#FF8F00":i===5?"#2D7A3A":"var(--forest)",borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",color:"white",fontSize:11,fontWeight:700,flexShrink:0}}>{i+1}</div>
                     <div style={{flex:1}}>
                       <div style={{fontSize:11,color:"var(--muted)",fontFamily}}>{label}</div>
-                      <div style={{fontSize:14,fontWeight:700,color:i===4?"#E65100":i===5?"#2D7A3A":"var(--ink)",fontFamily}}>{icon} {val}</div>
+                      <div style={{fontSize:14,fontWeight:700,color:i===4?"#E65100":i===5?"#2D7A3A":"var(--text)",fontFamily}}>{icon} {val}</div>
                     </div>
                     {/* Copy button for district/mandal/village */}
                     {i<3&&(
@@ -1134,6 +1134,20 @@ function LandScanner({onClose}){
                 style={{width:"100%",background:"#1565C0",color:"white",border:"none",borderRadius:12,padding:"14px",cursor:"pointer",fontFamily,fontWeight:700,fontSize:14,marginBottom:8}}>
                 🌐 {isTe?"మళ్ళీ MeeBhoomi తెరవండి":"Open MeeBhoomi Again"}
               </button>
+
+              {/* Satellite View + Directions */}
+              {gpsData?.lat&&(
+                <div style={{display:"flex",gap:8,marginBottom:8}}>
+                  <a href={`https://www.google.com/maps?q=${gpsData.lat},${gpsData.lon}&z=18&t=k`} target="_blank" rel="noopener noreferrer"
+                    style={{flex:1,background:"#1565C0",color:"white",borderRadius:10,padding:"12px",fontWeight:700,fontSize:13,fontFamily,textDecoration:"none",textAlign:"center",display:"block"}}>
+                    🛰 {isTe?"శాటిలైట్ వ్యూ":"Satellite View"}
+                  </a>
+                  <a href={`https://maps.google.com/?q=${gpsData.lat},${gpsData.lon}`} target="_blank" rel="noopener noreferrer"
+                    style={{flex:1,background:"#2D7A3A",color:"white",borderRadius:10,padding:"12px",fontWeight:700,fontSize:13,fontFamily,textDecoration:"none",textAlign:"center",display:"block"}}>
+                    🗺 {isTe?"దారి చూపించు":"Get Directions"}
+                  </a>
+                </div>
+              )}
 
               <button onClick={()=>setStep("home")}
                 style={{width:"100%",background:"white",color:"var(--forest)",border:"2px solid var(--forest)",borderRadius:12,padding:"12px",cursor:"pointer",fontFamily,fontWeight:600,fontSize:13}}>
