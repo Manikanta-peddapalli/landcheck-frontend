@@ -281,6 +281,25 @@ function LoginPage({onLogin,onRegister}){
   const handleLogin=async()=>{
     if(!email||!pass){setError("Enter email and password!");return;}
     setLoading(true);setError("");
+
+    // Check demo accounts FIRST (always works!)
+    const demo={
+      "farmer@demo.com":{pass:"Demo@1234",name:"Ravi Kumar",role:"Farmer"},
+      "bank@demo.com":{pass:"Demo@1234",name:"SBI Bank Manager",role:"Bank"},
+      "lawyer@demo.com":{pass:"Demo@1234",name:"Advocate Sharma",role:"Lawyer"},
+      "admin@landcheck.in":{pass:"Admin@2024!",name:"Admin",role:"Admin"},
+    };
+    const emailLower = email.toLowerCase().trim();
+    if(demo[emailLower] && demo[emailLower].pass===pass){
+      const d=demo[emailLower];
+      const u={email:emailLower,fullName:d.name,role:d.role};
+      localStorage.setItem("lc_user",JSON.stringify(u));
+      onLogin(u);
+      setLoading(false);
+      return;
+    }
+
+    // Try real backend for registered users
     try{
       const res=await fetch("https://landcheck-backend-4dym.onrender.com/api/auth/login",{
         method:"POST",headers:{"Content-Type":"application/json"},
@@ -292,18 +311,10 @@ function LoginPage({onLogin,onRegister}){
         localStorage.setItem("lc_user",JSON.stringify(data.user||{email,fullName:email.split("@")[0],role:"Farmer"}));
         onLogin(data.user||{email,fullName:email.split("@")[0],role:"Farmer"});
       } else {
-        setError(data.message||"Login failed!");
+        setError(data.message||"Login failed. Check email and password!");
       }
     }catch(e){
-      // Demo fallback
-      const demoUsers={"farmer@demo.com":"Demo@1234","bank@demo.com":"Demo@1234","lawyer@demo.com":"Demo@1234","admin@landcheck.in":"Admin@2024!"};
-      if(demoUsers[email]===pass){
-        const u={email,fullName:email.split("@")[0],role:"Farmer"};
-        localStorage.setItem("lc_user",JSON.stringify(u));
-        onLogin(u);
-      } else {
-        setError("Login failed. Please try again!");
-      }
+      setError("Server error. Please try again!");
     }
     setLoading(false);
   };
