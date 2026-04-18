@@ -141,8 +141,10 @@ function downloadReport(plot, gps, isTe){
   const a = document.createElement("a");
   a.href = url;
   a.download = "LandCheck-Report-" + plot.surveyNumber.replace("/","-") + "-" + date.replace(/\//g,"-") + ".html";
+  a.style.display = "none";
+  document.body.appendChild(a);
   a.click();
-  URL.revokeObjectURL(url);
+  setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
 }
 
 function LandScanner({onClose}){
@@ -909,8 +911,10 @@ function AddRecordModal({onClose,onAdd}){
         const a=document.createElement("a");
         a.href=url;
         a.download="LandCheck-Report-"+record.surveyNumber.replace("/","-")+"-"+date.replace(/\//g,"-")+".html";
+        a.style.display="none";
+        document.body.appendChild(a);
         a.click();
-        URL.revokeObjectURL(url);
+        setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); },1000);
     },300);
   };
 
@@ -1218,7 +1222,10 @@ function Dashboard({user,onLogout}){
     const url=URL.createObjectURL(blob);
     const a=document.createElement("a");
     a.href=url;a.download="LandCheck-"+String(record.surveyNumber||"report").replace("/","-")+".html";
-    a.click();URL.revokeObjectURL(url);
+    a.style.display="none";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); },1000);
   };
 
   const features=[
