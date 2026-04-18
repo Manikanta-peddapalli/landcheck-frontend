@@ -136,15 +136,16 @@ function downloadReport(plot, gps, isTe){
 </body>
 </html>`;
 
-  const blob = new Blob([html], {type:"text/html"});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "LandCheck-Report-" + plot.surveyNumber.replace("/","-") + "-" + date.replace(/\//g,"-") + ".html";
-  a.style.display = "none";
-  document.body.appendChild(a);
-  a.click();
-  setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
+  const w = window.open("","_blank");
+  if(w){ w.document.write(html); w.document.close(); }
+  else {
+    const blob = new Blob([html], {type:"text/html"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "LandCheck-Report.html";
+    a.style.display="none"; document.body.appendChild(a);
+    a.click(); setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); },1000);
+  }
 }
 
 function LandScanner({onClose}){
@@ -906,15 +907,16 @@ function AddRecordModal({onClose,onAdd}){
         +"</div>"
         +"<div class='footer'><div style='font-weight:700;color:#2D5A1E'>🌾 LandCheck — Verify Land. Stop Fraud. Protect Families.</div><div>Report ID: LC-"+record.id+" | "+date+"</div></div>"
         +"</div></body></html>";
-        const blob=new Blob([html],{type:"text/html"});
-        const url=URL.createObjectURL(blob);
-        const a=document.createElement("a");
-        a.href=url;
-        a.download="LandCheck-Report-"+record.surveyNumber.replace("/","-")+"-"+date.replace(/\//g,"-")+".html";
-        a.style.display="none";
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); },1000);
+        const w=window.open("","_blank");
+        if(w){ w.document.write(html); w.document.close(); }
+        else {
+          const blob=new Blob([html],{type:"text/html"});
+          const url=URL.createObjectURL(blob);
+          const a=document.createElement("a");
+          a.href=url; a.download="LandCheck-Report.html";
+          a.style.display="none"; document.body.appendChild(a);
+          a.click(); setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); },1000);
+        }
     },300);
   };
 
@@ -1221,11 +1223,13 @@ function Dashboard({user,onLogout}){
     const blob=new Blob([html],{type:"text/html"});
     const url=URL.createObjectURL(blob);
     const a=document.createElement("a");
-    a.href=url;a.download="LandCheck-"+String(record.surveyNumber||"report").replace("/","-")+".html";
-    a.style.display="none";
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); },1000);
+    const w=window.open("","_blank");
+    if(w){ w.document.write(html); w.document.close(); }
+    else {
+      a.href=url; a.download="LandCheck-Report.html";
+      a.style.display="none"; document.body.appendChild(a);
+      a.click(); setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); },1000);
+    }
   };
 
   const features=[
