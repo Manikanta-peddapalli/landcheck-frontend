@@ -810,10 +810,103 @@ function FraudDetector({onClose}){
 
 
 // ── ADD RECORD MODAL ──────────────────────────────────────────
+function ReportView({record, onClose}){
+  const {isTe}=useLang();
+  const ff=isTe?"'Noto Sans Telugu',sans-serif":"'Instrument Sans',sans-serif";
+  const rs=record.riskSummary||{riskLevel:"Low",riskScore:0};
+  const RC={Low:"#2D7A3A",Medium:"#C8760C",High:"#C0392B"};
+  const RB={Low:"#E8F5E9",Medium:"#FFF3E0",High:"#FFEBEE"};
+
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.85)",zIndex:2000,display:"flex",alignItems:"flex-end",justifyContent:"center",padding:16}}>
+      <div style={{background:"#F5F0E8",borderRadius:"24px 24px 0 0",width:"100%",maxWidth:520,maxHeight:"96vh",overflowY:"auto"}}>
+        <div style={{background:FOREST,borderRadius:"24px 24px 0 0",padding:"16px 20px",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:10}}>
+          <div style={{fontWeight:700,color:"white",fontSize:16,fontFamily:ff}}>📄 {isTe?"వెరిఫికేషన్ రిపోర్ట్":"Verification Report"}</div>
+          <button onClick={onClose} style={{background:"rgba(255,255,255,.2)",border:"none",color:"white",width:32,height:32,borderRadius:8,cursor:"pointer",fontSize:18}}>×</button>
+        </div>
+        <div style={{padding:16}}>
+          {/* Header */}
+          <div style={{background:FOREST,borderRadius:12,padding:"16px",marginBottom:12,color:"white",textAlign:"center"}}>
+            <div style={{fontSize:28,marginBottom:4}}>🌾</div>
+            <div style={{fontWeight:800,fontSize:18,fontFamily:ff}}>LandCheck Verification Report</div>
+            <div style={{fontSize:11,opacity:.8,marginTop:4}}>{new Date().toLocaleDateString("en-IN")} | landcheck-frontend.vercel.app</div>
+          </div>
+
+          {/* Risk */}
+          <div style={{background:RB[rs.riskLevel],border:"2px solid "+RC[rs.riskLevel],borderRadius:12,padding:"14px 16px",marginBottom:12,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div>
+              <div style={{fontSize:11,fontWeight:700,color:RC[rs.riskLevel]}}>RISK ASSESSMENT</div>
+              <div style={{fontSize:20,fontWeight:800,color:RC[rs.riskLevel],fontFamily:ff}}>{rs.riskLevel==="Low"?"LOW RISK ✅":rs.riskLevel==="High"?"HIGH RISK 🚨":"MEDIUM RISK ⚠️"}</div>
+            </div>
+            <div style={{fontSize:40,fontWeight:800,color:RC[rs.riskLevel],fontFamily:ff}}>{rs.riskScore}<span style={{fontSize:14}}>/100</span></div>
+          </div>
+
+          {/* Land Details */}
+          <div style={{background:"white",borderRadius:12,padding:14,marginBottom:10,border:"1px solid #E8ECF0"}}>
+            <div style={{fontWeight:700,fontSize:13,color:FOREST,marginBottom:10,fontFamily:ff}}>📋 {isTe?"భూమి వివరాలు":"Land Details"}</div>
+            {[["Survey No",record.surveyNumber],["Owner",record.ownerName],["Village",record.village],["Mandal",record.mandal],["District",record.district],["Land Type",record.landType],["Extent",record.extentAcres+" Acres"],["Market Value",record.marketValue||"—"],["Date",record.createdAt]].map(([k,v])=>(
+              <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:"1px solid #F5F5F5"}}>
+                <span style={{fontSize:12,color:"#666",fontFamily:ff}}>{k}</span>
+                <span style={{fontSize:12,fontWeight:600,color:"#1a1a1a",fontFamily:ff,textAlign:"right",maxWidth:"60%"}}>{v||"—"}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Agriculture */}
+          <div style={{background:"white",borderRadius:12,padding:14,marginBottom:10,border:"1px solid #E8ECF0"}}>
+            <div style={{fontWeight:700,fontSize:13,color:FOREST,marginBottom:10,fontFamily:ff}}>🌱 {isTe?"వ్యవసాయం":"Agriculture"}</div>
+            {[["Soil Type",record.soilType],["Water Source",record.waterSource],["Crop",record.cropGrown]].map(([k,v])=>(
+              <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:"1px solid #F5F5F5"}}>
+                <span style={{fontSize:12,color:"#666",fontFamily:ff}}>{k}</span>
+                <span style={{fontSize:12,fontWeight:600,fontFamily:ff}}>{v||"—"}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Legal */}
+          <div style={{background:"white",borderRadius:12,padding:14,marginBottom:10,border:"1px solid #E8ECF0"}}>
+            <div style={{fontWeight:700,fontSize:13,color:FOREST,marginBottom:10,fontFamily:ff}}>⚖️ {isTe?"చట్టపరమైన స్థితి":"Legal Status"}</div>
+            {[["EC Status",record.ecStatus],["Bank Loan",record.bankLoan],["Court Case",record.courtCase]].map(([k,v])=>(
+              <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:"1px solid #F5F5F5"}}>
+                <span style={{fontSize:12,color:"#666",fontFamily:ff}}>{k}</span>
+                <span style={{fontSize:12,fontWeight:600,color:String(v||"").includes("⚠")?"#C0392B":"#1a1a1a",fontFamily:ff,textAlign:"right",maxWidth:"60%"}}>{v||"—"}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Fraud Warning */}
+          {record.fraudWordsFound?.length>0&&(
+            <div style={{background:"#FFEBEE",border:"2px solid #FFCDD2",borderRadius:12,padding:14,marginBottom:10}}>
+              <div style={{fontWeight:700,fontSize:13,color:"#C0392B",marginBottom:8}}>🚨 {isTe?"హెచ్చరిక పదాలు కనుగొన్నారు!":"Fraud Warning Words Found!"}</div>
+              <div style={{fontSize:12,color:"#C0392B",fontFamily:ff}}>{record.fraudWordsFound.map(w=>w.toUpperCase()).join(", ")}</div>
+            </div>
+          )}
+
+          {/* Disclaimer */}
+          <div style={{background:"#FFF8E1",border:"1px solid #FFB300",borderRadius:10,padding:12,marginBottom:12}}>
+            <div style={{fontSize:11,color:"#E65100",fontFamily:ff,lineHeight:1.5}}>⚖️ <strong>Disclaimer:</strong> {isTe?"ఈ రిపోర్ట్ సమాచార ప్రయోజనాల కోసం మాత్రమే. భూమి కొనుగోలు చేయడానికి ముందు లాయర్‌ని సంప్రదించండి.":"This report is for informational purposes only. Always consult a qualified lawyer before any land decisions."}</div>
+          </div>
+
+          {/* Report ID */}
+          <div style={{textAlign:"center",padding:"10px",background:"#F0F4F0",borderRadius:10,marginBottom:16}}>
+            <div style={{fontSize:11,color:"#666",fontFamily:ff}}>🌾 LandCheck | Report ID: LC-{record.id} | {record.createdAt}</div>
+          </div>
+
+          <button onClick={onClose} style={{width:"100%",background:FOREST,color:"white",border:"none",borderRadius:12,padding:"14px",cursor:"pointer",fontFamily:ff,fontWeight:700,fontSize:15}}>
+            ✅ {isTe?"మూసివేయండి":"Close Report"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AddRecordModal({onClose,onAdd}){
   const {isTe}=useLang();
   const ff=isTe?"'Noto Sans Telugu',sans-serif":"'Instrument Sans',sans-serif";
   const [step,setStep]=useState(1);
+  const [showReport,setShowReport]=useState(false);
+  const [savedRecord,setSavedRecord]=useState(null);
   const [form,setForm]=useState({
     surveyNumber:"",ownerName:"",village:"",mandal:"",district:"",
     landType:"Agricultural",extentAcres:"",marketValue:"",
@@ -850,9 +943,7 @@ function AddRecordModal({onClose,onAdd}){
     const files=Array.from(e.target.files);
     files.forEach(file=>{
       const reader=new FileReader();
-      reader.onload=(ev)=>{
-        setDocs(d=>[...d,{name:file.name,type:file.type,data:ev.target.result,size:file.size}]);
-      };
+      reader.onload=(ev)=>{ setDocs(d=>[...d,{name:file.name,type:file.type,data:ev.target.result,size:file.size}]); };
       reader.readAsDataURL(file);
     });
   };
@@ -875,8 +966,7 @@ function AddRecordModal({onClose,onAdd}){
       bankLoan:form.bankLoan||"Not verified",
       courtCase:form.courtCase||"Not verified",
       boundaries:{north:form.northBoundary,south:form.southBoundary,east:form.eastBoundary,west:form.westBoundary},
-      previousOwners:form.previousOwners?form.previousOwners.split("
-").filter(Boolean):["Not provided"],
+      previousOwners:form.previousOwners?form.previousOwners.split("\n").filter(Boolean):["Not provided"],
       notes:form.notes,
       documents:docs,
       fraudWordsFound:fraudWords,
@@ -885,39 +975,8 @@ function AddRecordModal({onClose,onAdd}){
       status:riskLevel==="High"?"Flagged":riskLevel==="Medium"?"UnderReview":"Verified"
     };
     onAdd(record);
-    // Generate and download report immediately - no confirm popup!
-    setTimeout(()=>{
-        const date=new Date().toLocaleDateString("en-IN");
-        const rc2={Low:"#2D7A3A",Medium:"#C8760C",High:"#C0392B"};
-        const html="<!DOCTYPE html><html><head><meta charset='UTF-8'><title>LandCheck Report - "+record.surveyNumber+"</title><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Arial,sans-serif;background:#F5F0E8;padding:20px}.page{background:white;max-width:800px;margin:0 auto;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.1)}.header{background:#2D5A1E;padding:28px 32px;color:white}.risk{background:"+rc2[riskLevel]+";padding:20px 32px;color:white;display:flex;justify-content:space-between;align-items:center}.content{padding:28px 32px}.section{margin-bottom:20px;border:1px solid #E8ECF0;border-radius:12px;overflow:hidden}.sec-title{background:#F8F9FA;padding:12px 16px;font-weight:700;color:#2D5A1E;border-bottom:1px solid #E8ECF0}.row{display:flex;justify-content:space-between;padding:10px 16px;border-bottom:1px solid #F5F5F5}.disclaimer{background:#FFF8E1;border:1px solid #FFB300;border-radius:10px;padding:14px;margin:16px 0;font-size:12px;color:#E65100;line-height:1.5}.footer{background:#F8F9FA;padding:16px 32px;display:flex;justify-content:space-between;font-size:11px;color:#888;border-top:1px solid #E8ECF0}</style></head><body><div class='page'>"
-        +"<div class='header'><div style='font-size:32px;margin-bottom:6px'>🌾</div><div style='font-size:24px;font-weight:900;margin-bottom:4px'>LandCheck Verification Report</div><div style='opacity:.8;font-size:13px'>Generated on "+date+" | landcheck-frontend.vercel.app</div></div>"
-        +"<div class='risk'><div><div style='font-size:13px;opacity:.8;margin-bottom:4px'>RISK ASSESSMENT</div><div style='font-size:24px;font-weight:900'>"+(riskLevel==="Low"?"LOW RISK ✅":riskLevel==="High"?"HIGH RISK 🚨":"MEDIUM RISK ⚠️")+"</div><div style='font-size:13px;opacity:.8;margin-top:4px'>Survey: "+record.surveyNumber+"</div></div><div style='font-size:52px;font-weight:900;text-align:right'>"+riskScore+"<span style='font-size:16px'>/100</span></div></div>"
-        +"<div class='content'>"
-        +"<div class='section'><div class='sec-title'>📋 Land Details</div>"
-        +[["Survey Number",record.surveyNumber],["Owner Name",record.ownerName],["Village",record.village],["Mandal",record.mandal],["District",record.district],["Land Type",record.landType],["Extent",record.extentAcres+" Acres"],["Market Value",record.marketValue||"—"],["Date Added",record.createdAt]].map(([k,v])=>"<div class='row'><span style='color:#666;font-size:13px'>"+k+"</span><span style='font-weight:600;font-size:13px'>"+v+"</span></div>").join("")
-        +"</div>"
-        +"<div class='section'><div class='sec-title'>🌱 Agricultural Details</div>"
-        +[["Soil Type",record.soilType||"—"],["Water Source",record.waterSource||"—"],["Crop Grown",record.cropGrown||"—"]].map(([k,v])=>"<div class='row'><span style='color:#666;font-size:13px'>"+k+"</span><span style='font-weight:600;font-size:13px'>"+v+"</span></div>").join("")
-        +"</div>"
-        +"<div class='section'><div class='sec-title'>⚖️ Legal Status</div>"
-        +[["EC Status",record.ecStatus],["Bank Loan",record.bankLoan],["Court Case",record.courtCase]].map(([k,v])=>"<div class='row'><span style='color:#666;font-size:13px'>"+k+"</span><span style='font-weight:600;font-size:13px;color:"+(String(v||"").includes("⚠")?"#C0392B":"#1a1a1a")+"'>"+v+"</span></div>").join("")
-        +"</div>"
-        +(record.fraudWordsFound?.length>0?"<div style='background:#FFEBEE;border:2px solid #FFCDD2;border-radius:12px;padding:16px;margin:16px 0'><div style='font-weight:700;color:#C0392B;font-size:15px;margin-bottom:8px'>🚨 Fraud Warning Words Detected!</div><div style='color:#C0392B;font-size:13px'>"+record.fraudWordsFound.map(w=>w.toUpperCase()).join(", ")+"</div></div>":"")
-        +"<div class='disclaimer'>⚖️ <strong>Legal Disclaimer:</strong> This report is for informational purposes only based on data provided by the user. LandCheck does not provide legal advice. Always verify with official government records and consult a qualified lawyer before any land-related decisions.</div>"
-        +"</div>"
-        +"<div class='footer'><div style='font-weight:700;color:#2D5A1E'>🌾 LandCheck — Verify Land. Stop Fraud. Protect Families.</div><div>Report ID: LC-"+record.id+" | "+date+"</div></div>"
-        +"</div></body></html>";
-        const w=window.open("","_blank");
-        if(w){ w.document.write(html); w.document.close(); }
-        else {
-          const blob=new Blob([html],{type:"text/html"});
-          const url=URL.createObjectURL(blob);
-          const a=document.createElement("a");
-          a.href=url; a.download="LandCheck-Report.html";
-          a.style.display="none"; document.body.appendChild(a);
-          a.click(); setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); },1000);
-        }
-    },300);
+    setSavedRecord(record);
+    setShowReport(true);
   };
 
   const inputStyle={width:"100%",padding:"11px 14px",border:"1.5px solid #DDD",borderRadius:10,fontFamily:ff,fontSize:13,marginBottom:10,outline:"none",background:"white"};
@@ -930,9 +989,11 @@ function AddRecordModal({onClose,onAdd}){
     isTe?"పత్రాలు":"Documents",
   ];
 
+  if(showReport&&savedRecord) return <ReportView record={savedRecord} onClose={()=>{setShowReport(false);onClose();}}/>;
+
   return(
     <div style={{position:"fixed",inset:0,background:"rgba(28,58,18,.85)",backdropFilter:"blur(8px)",zIndex:1000,display:"flex",alignItems:"flex-end",justifyContent:"center",padding:16}}>
-      <div style={{background:CREAM,borderRadius:"24px 24px 0 0",width:"100%",maxWidth:520,maxHeight:"96vh",overflowY:"auto"}}>
+      <div style={{background:"#F5F0E8",borderRadius:"24px 24px 0 0",width:"100%",maxWidth:520,maxHeight:"96vh",overflowY:"auto"}}>
         {/* Header */}
         <div style={{background:FOREST,borderRadius:"24px 24px 0 0",padding:"18px 20px",position:"sticky",top:0,zIndex:10}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
@@ -943,253 +1004,132 @@ function AddRecordModal({onClose,onAdd}){
           <div style={{display:"flex",gap:4}}>
             {steps.map((s,i)=>(
               <div key={i} onClick={()=>setStep(i+1)} style={{flex:1,textAlign:"center",cursor:"pointer"}}>
-                <div style={{height:4,borderRadius:4,background:step>i?"white":"rgba(255,255,255,.3)",marginBottom:4,transition:"background .3s"}}/>
-                <div style={{fontSize:9,color:step>i?"white":"rgba(255,255,255,.5)",fontFamily:ff,fontWeight:step===i+1?700:400}}>{s}</div>
+                <div style={{height:4,borderRadius:2,background:step>i+1?"rgba(255,255,255,.9)":step===i+1?"white":"rgba(255,255,255,.3)",marginBottom:4}}/>
+                <div style={{fontSize:9,color:step===i+1?"white":"rgba(255,255,255,.6)",fontFamily:ff}}>{s}</div>
               </div>
             ))}
           </div>
         </div>
 
         <div style={{padding:20}}>
-
-          {/* STEP 1 - Land Details */}
+          {/* Step 1 - Land Details */}
           {step===1&&(
             <div>
-              <div style={{fontWeight:700,fontSize:15,fontFamily:ff,marginBottom:16,color:FOREST}}>📋 {isTe?"భూమి వివరాలు":"Land Details"}</div>
-              {[["surveyNumber",isTe?"సర్వే నంబర్":"Survey Number","441/2A"],["ownerName",isTe?"యజమాని పేరు":"Owner Name","Ravi Kumar"],["village",isTe?"గ్రామం":"Village","Magandlapalle"],["mandal",isTe?"మండలం":"Mandal","Punganur"],["district",isTe?"జిల్లా":"District","Annamayya"],["extentAcres",isTe?"విస్తీర్ణం (ఎకరాలు)":"Extent (Acres)","2.50"],["marketValue",isTe?"మార్కెట్ విలువ":"Market Value","₹45,00,000"]].map(([k,lbl,ph])=>(
-                <div key={k}>
-                  <label style={labelStyle}>{lbl}</label>
-                  <input value={form[k]} onChange={e=>up(k,e.target.value)} placeholder={ph} style={inputStyle}/>
-                </div>
-              ))}
-              <div>
-                <label style={labelStyle}>{isTe?"భూమి రకం":"Land Type"}</label>
-                <select value={form.landType} onChange={e=>up("landType",e.target.value)} style={inputStyle}>
-                  <option>Agricultural</option>
-                  <option>Residential</option>
-                  <option>Commercial</option>
-                  <option>Industrial</option>
-                </select>
-              </div>
-              <button onClick={()=>setStep(2)} style={{width:"100%",background:FOREST,color:"white",border:"none",borderRadius:12,padding:"14px",cursor:"pointer",fontFamily:ff,fontWeight:700,fontSize:14,marginTop:8}}>
-                {isTe?"తదుపరి →":"Next →"}
+              <label style={labelStyle}>{isTe?"సర్వే నంబర్":"Survey Number"} *</label>
+              <input value={form.surveyNumber} onChange={e=>up("surveyNumber",e.target.value)} placeholder="e.g. 441/2A" style={inputStyle}/>
+              <label style={labelStyle}>{isTe?"యజమాని పేరు":"Owner Name"} *</label>
+              <input value={form.ownerName} onChange={e=>up("ownerName",e.target.value)} placeholder={isTe?"పూర్తి పేరు":"Full name"} style={inputStyle}/>
+              <label style={labelStyle}>{isTe?"గ్రామం":"Village"} *</label>
+              <input value={form.village} onChange={e=>up("village",e.target.value)} placeholder={isTe?"గ్రామం పేరు":"Village name"} style={inputStyle}/>
+              <label style={labelStyle}>{isTe?"మండలం":"Mandal"}</label>
+              <input value={form.mandal} onChange={e=>up("mandal",e.target.value)} placeholder={isTe?"మండలం పేరు":"Mandal name"} style={inputStyle}/>
+              <label style={labelStyle}>{isTe?"జిల్లా":"District"} *</label>
+              <input value={form.district} onChange={e=>up("district",e.target.value)} placeholder={isTe?"జిల్లా పేరు":"District name"} style={inputStyle}/>
+              <label style={labelStyle}>{isTe?"భూమి రకం":"Land Type"}</label>
+              <select value={form.landType} onChange={e=>up("landType",e.target.value)} style={{...inputStyle}}>
+                <option value="Agricultural">{isTe?"వ్యవసాయ భూమి":"Agricultural"}</option>
+                <option value="Residential">{isTe?"నివాస భూమి":"Residential"}</option>
+                <option value="Commercial">{isTe?"వాణిజ్య భూమి":"Commercial"}</option>
+                <option value="Industrial">{isTe?"పారిశ్రామిక భూమి":"Industrial"}</option>
+              </select>
+              <label style={labelStyle}>{isTe?"విస్తీర్ణం (ఎకరాలు)":"Extent (Acres)"}</label>
+              <input value={form.extentAcres} onChange={e=>up("extentAcres",e.target.value)} placeholder="e.g. 2.50" type="number" step="0.01" style={inputStyle}/>
+              <label style={labelStyle}>{isTe?"మార్కెట్ విలువ":"Market Value"}</label>
+              <input value={form.marketValue} onChange={e=>up("marketValue",e.target.value)} placeholder="e.g. ₹45,00,000" style={inputStyle}/>
+              <button onClick={()=>setStep(2)} style={{width:"100%",background:"linear-gradient(135deg,"+FOREST+",#4A8B35)",color:"white",border:"none",borderRadius:12,padding:"13px",cursor:"pointer",fontFamily:ff,fontWeight:700,fontSize:14}}>
+                {isTe?"తదుపరి":"Next"} →
               </button>
             </div>
           )}
 
-          {/* STEP 2 - Agriculture */}
+          {/* Step 2 - Agriculture */}
           {step===2&&(
             <div>
-              <div style={{fontWeight:700,fontSize:15,fontFamily:ff,marginBottom:16,color:FOREST}}>🌱 {isTe?"వ్యవసాయ వివరాలు":"Agricultural Details"}</div>
-              {[["soilType",isTe?"నేల రకం":"Soil Type","Black Cotton Soil"],["waterSource",isTe?"నీటి వనరు":"Water Source","Canal Irrigation"],["cropGrown",isTe?"పంట":"Crop Grown","Paddy"]].map(([k,lbl,ph])=>(
-                <div key={k}>
-                  <label style={labelStyle}>{lbl}</label>
-                  <input value={form[k]} onChange={e=>up(k,e.target.value)} placeholder={ph} style={inputStyle}/>
-                </div>
-              ))}
-              <div style={{fontWeight:700,fontSize:14,fontFamily:ff,margin:"16px 0 10px",color:FOREST}}>🧭 {isTe?"హద్దులు":"Boundaries"}</div>
-              {[["northBoundary","↑ North"],["southBoundary","↓ South"],["eastBoundary","→ East"],["westBoundary","← West"]].map(([k,lbl])=>(
-                <div key={k}>
-                  <label style={labelStyle}>{lbl}</label>
-                  <input value={form[k]} onChange={e=>up(k,e.target.value)} placeholder={lbl+" boundary..."} style={inputStyle}/>
-                </div>
-              ))}
-              <div style={{display:"flex",gap:8,marginTop:8}}>
-                <button onClick={()=>setStep(1)} style={{flex:1,background:"white",color:FOREST,border:"2px solid "+FOREST,borderRadius:12,padding:"13px",cursor:"pointer",fontFamily:ff,fontWeight:600,fontSize:14}}>← {isTe?"వెనక్కి":"Back"}</button>
-                <button onClick={()=>setStep(3)} style={{flex:2,background:FOREST,color:"white",border:"none",borderRadius:12,padding:"13px",cursor:"pointer",fontFamily:ff,fontWeight:700,fontSize:14}}>{isTe?"తదుపరి →":"Next →"}</button>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 3 - Legal */}
-          {step===3&&(
-            <div>
-              <div style={{fontWeight:700,fontSize:15,fontFamily:ff,marginBottom:16,color:FOREST}}>⚖️ {isTe?"చట్టపరమైన స్థితి":"Legal Status"}</div>
-              {[["ecStatus",isTe?"EC స్థితి":"EC Status","Clear / No encumbrances"],["bankLoan",isTe?"బ్యాంక్ రుణం":"Bank Loan","No active loan"],["courtCase",isTe?"కోర్టు కేసు":"Court Case","No disputes"]].map(([k,lbl,ph])=>(
-                <div key={k}>
-                  <label style={labelStyle}>{lbl}</label>
-                  <input value={form[k]} onChange={e=>up(k,e.target.value)} placeholder={ph} style={inputStyle}/>
-                </div>
-              ))}
-              <div>
-                <label style={labelStyle}>{isTe?"గత యజమానులు (ఒక్కొక్కరు వేరే లైన్‌లో)":"Previous Owners (one per line)"}</label>
-                <textarea value={form.previousOwners} onChange={e=>up("previousOwners",e.target.value)} placeholder={"Gopal Rao (1985-2001)
-Suresh Rao (2001-2015)
-Ravi Kumar (2015-Now)"} style={{...inputStyle,height:100,resize:"none"}}/>
-              </div>
-              <div>
-                <label style={labelStyle}>{isTe?"గమనికలు":"Notes"}</label>
-                <textarea value={form.notes} onChange={e=>up("notes",e.target.value)} placeholder={isTe?"అదనపు గమనికలు...":"Additional notes..."} style={{...inputStyle,height:80,resize:"none"}}/>
-              </div>
-              <div style={{display:"flex",gap:8,marginTop:8}}>
-                <button onClick={()=>setStep(2)} style={{flex:1,background:"white",color:FOREST,border:"2px solid "+FOREST,borderRadius:12,padding:"13px",cursor:"pointer",fontFamily:ff,fontWeight:600,fontSize:14}}>← {isTe?"వెనక్కి":"Back"}</button>
-                <button onClick={()=>setStep(4)} style={{flex:2,background:FOREST,color:"white",border:"none",borderRadius:12,padding:"13px",cursor:"pointer",fontFamily:ff,fontWeight:700,fontSize:14}}>{isTe?"తదుపరి →":"Next →"}</button>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 4 - Documents + Submit */}
-          {step===4&&(
-            <div>
-              <div style={{fontWeight:700,fontSize:15,fontFamily:ff,marginBottom:16,color:FOREST}}>📄 {isTe?"పత్రాలు అప్‌లోడ్ చేయండి":"Upload Documents"}</div>
-              <label style={{width:"100%",border:"2px dashed "+GOLD,borderRadius:14,padding:"24px",textAlign:"center",cursor:"pointer",display:"block",marginBottom:12,background:"#FFFBF0"}}>
-                <div style={{fontSize:36,marginBottom:8}}>📁</div>
-                <div style={{fontWeight:700,fontFamily:ff,color:FOREST,marginBottom:4}}>{isTe?"పత్రాలు ఎంచుకోండి":"Choose Documents"}</div>
-                <div style={{fontSize:12,color:"#888",fontFamily:ff}}>{isTe?"Sale Deed, EC, Passbook, FMB...":"Sale Deed, EC, Passbook, FMB..."}</div>
-                <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png" onChange={handleDocUpload} style={{display:"none"}}/>
-              </label>
-              {docs.length>0&&(
-                <div style={{marginBottom:12}}>
-                  {docs.map((d,i)=>(
-                    <div key={i} style={{background:"#E8F5E9",borderRadius:8,padding:"8px 12px",marginBottom:6,display:"flex",alignItems:"center",gap:8}}>
-                      <span style={{fontSize:18}}>{d.type.includes("pdf")?"📄":"🖼️"}</span>
-                      <div style={{flex:1}}>
-                        <div style={{fontSize:12,fontWeight:600,fontFamily:ff}}>{d.name}</div>
-                        <div style={{fontSize:10,color:"#666",fontFamily:ff}}>{(d.size/1024).toFixed(1)} KB</div>
-                      </div>
-                      <button onClick={()=>setDocs(ds=>ds.filter((_,j)=>j!==i))} style={{background:"none",border:"none",color:ERR,cursor:"pointer",fontSize:16}}>×</button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Risk Preview */}
-              <div style={{background:"#F8F9FA",borderRadius:12,padding:14,marginBottom:16,border:"1px solid #E0E8D8"}}>
-                <div style={{fontWeight:700,fontSize:13,fontFamily:ff,marginBottom:8,color:FOREST}}>📊 {isTe?"రిస్క్ ప్రివ్యూ":"Risk Preview"}</div>
-                <div style={{fontSize:12,color:"#666",fontFamily:ff}}>
-                  {isTe?"సేవ్ చేసిన తర్వాత ఆటోమేటిక్‌గా రిస్క్ స్కోర్ లెక్కిస్తారు":"Risk score will be calculated automatically on save"}
-                </div>
-              </div>
-
+              <label style={labelStyle}>{isTe?"నేల రకం":"Soil Type"}</label>
+              <select value={form.soilType} onChange={e=>up("soilType",e.target.value)} style={{...inputStyle}}>
+                <option value="">{isTe?"ఎంచుకోండి":"Select"}</option>
+                {["Black Cotton Soil","Red Soil","Alluvial Soil","Sandy Loam","Clay Soil"].map(s=><option key={s} value={s}>{s}</option>)}
+              </select>
+              <label style={labelStyle}>{isTe?"నీటి వనరు":"Water Source"}</label>
+              <select value={form.waterSource} onChange={e=>up("waterSource",e.target.value)} style={{...inputStyle}}>
+                <option value="">{isTe?"ఎంచుకోండి":"Select"}</option>
+                {["Canal Irrigation","Borewell","Rain-fed","Tank Irrigation","River","None"].map(s=><option key={s} value={s}>{s}</option>)}
+              </select>
+              <label style={labelStyle}>{isTe?"పంట రకం":"Crop Grown"}</label>
+              <input value={form.cropGrown} onChange={e=>up("cropGrown",e.target.value)} placeholder={isTe?"ఉదా: వరి, పత్తి":"e.g. Paddy, Cotton"} style={inputStyle}/>
+              <label style={labelStyle}>{isTe?"గత యజమానులు":"Previous Owners"}</label>
+              <textarea value={form.previousOwners} onChange={e=>up("previousOwners",e.target.value)} placeholder={isTe?"ప్రతి యజమాని ఒక్కో లైన్‌లో రాయండి":"One owner per line"} style={{...inputStyle,height:80,resize:"none"}}/>
               <div style={{display:"flex",gap:8}}>
-                <button onClick={()=>setStep(3)} style={{flex:1,background:"white",color:FOREST,border:"2px solid "+FOREST,borderRadius:12,padding:"13px",cursor:"pointer",fontFamily:ff,fontWeight:600,fontSize:14}}>← {isTe?"వెనక్కి":"Back"}</button>
-                <button onClick={handleSubmit} style={{flex:2,background:"linear-gradient(135deg,"+FOREST+",#4A8B35)",color:"white",border:"none",borderRadius:12,padding:"13px",cursor:"pointer",fontFamily:ff,fontWeight:800,fontSize:14}}>
-                  ✅ {isTe?"రికార్డు సేవ్ చేయి":"Save Record"}
+                <button onClick={()=>setStep(1)} style={{flex:1,background:"white",color:FOREST,border:"2px solid "+FOREST,borderRadius:12,padding:"12px",cursor:"pointer",fontFamily:ff,fontWeight:600}}>← {isTe?"వెనక్కి":"Back"}</button>
+                <button onClick={()=>setStep(3)} style={{flex:2,background:"linear-gradient(135deg,"+FOREST+",#4A8B35)",color:"white",border:"none",borderRadius:12,padding:"12px",cursor:"pointer",fontFamily:ff,fontWeight:700}}>
+                  {isTe?"తదుపరి":"Next"} →
                 </button>
               </div>
             </div>
           )}
 
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── RECORD DETAIL VIEW ────────────────────────────────────────
-function RecordDetail({record,onClose,onDownload}){
-  const {isTe}=useLang();
-  const ff=isTe?"'Noto Sans Telugu',sans-serif":"'Instrument Sans',sans-serif";
-  const RC2={Low:OK,Medium:"#C8760C",High:ERR};
-  const RB2={Low:"#E8F5E9",Medium:"#FFF3E0",High:"#FFEBEE"};
-  const rs=record.riskSummary||{riskLevel:"Low",riskScore:0};
-
-  return(
-    <div style={{position:"fixed",inset:0,background:"rgba(28,58,18,.85)",backdropFilter:"blur(8px)",zIndex:1000,display:"flex",alignItems:"flex-end",justifyContent:"center",padding:16}}>
-      <div style={{background:CREAM,borderRadius:"24px 24px 0 0",width:"100%",maxWidth:520,maxHeight:"96vh",overflowY:"auto"}}>
-        <div style={{background:FOREST,borderRadius:"24px 24px 0 0",padding:"18px 20px",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:10}}>
-          <div style={{display:"flex",gap:10,alignItems:"center"}}>
-            <div style={{width:40,height:40,background:GOLD,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>📋</div>
+          {/* Step 3 - Legal */}
+          {step===3&&(
             <div>
-              <div style={{fontWeight:700,color:"white",fontSize:16,fontFamily:ff}}>{record.ownerName}</div>
-              <div style={{fontSize:11,color:"rgba(255,255,255,.7)",fontFamily:ff}}>{record.surveyNumber} • {record.village}</div>
-            </div>
-          </div>
-          <button onClick={onClose} style={{background:"rgba(255,255,255,.15)",border:"none",color:"white",width:32,height:32,borderRadius:8,cursor:"pointer",fontSize:18}}>×</button>
-        </div>
-        <div style={{padding:20}}>
-          {/* Risk Banner */}
-          <div style={{background:RB2[rs.riskLevel],border:"2px solid "+RC2[rs.riskLevel],borderRadius:14,padding:"16px 18px",marginBottom:14,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <div>
-              <div style={{fontSize:11,fontWeight:700,color:RC2[rs.riskLevel],fontFamily:ff}}>RISK LEVEL</div>
-              <div style={{fontSize:20,fontWeight:800,color:RC2[rs.riskLevel],fontFamily:ff}}>{rs.riskLevel==="Low"?"LOW RISK ✅":rs.riskLevel==="High"?"HIGH RISK 🚨":"MEDIUM RISK ⚠️"}</div>
-              {record.fraudWordsFound?.length>0&&<div style={{fontSize:11,color:RC2[rs.riskLevel],marginTop:4,fontFamily:ff}}>{record.fraudWordsFound.length} {isTe?"హెచ్చరిక పదాలు కనుగొన్నారు":"warning words found"}</div>}
-            </div>
-            <div style={{textAlign:"right"}}>
-              <div style={{fontSize:40,fontWeight:800,color:RC2[rs.riskLevel],fontFamily:ff,lineHeight:1}}>{rs.riskScore}</div>
-              <div style={{fontSize:11,color:"#666"}}>/100</div>
-            </div>
-          </div>
-
-          {/* Details sections */}
-          {[
-            [isTe?"భూమి వివరాలు":"Land Details","📋",[[isTe?"సర్వే నంబర్":"Survey No",record.surveyNumber],[isTe?"యజమాని":"Owner",record.ownerName],[isTe?"గ్రామం":"Village",record.village],[isTe?"మండలం":"Mandal",record.mandal],[isTe?"జిల్లా":"District",record.district],[isTe?"భూమి రకం":"Land Type",record.landType],[isTe?"విస్తీర్ణం":"Extent",record.extentAcres+" Acres"],[isTe?"మార్కెట్ విలువ":"Market Value",record.marketValue],[isTe?"తేదీ":"Date",record.createdAt]]],
-            [isTe?"వ్యవసాయం":"Agriculture","🌱",[[isTe?"నేల రకం":"Soil Type",record.soilType],[isTe?"నీటి వనరు":"Water Source",record.waterSource],[isTe?"పంట":"Crop",record.cropGrown]]],
-            [isTe?"చట్టపరమైన స్థితి":"Legal Status","⚖️",[[isTe?"EC స్థితి":"EC Status",record.ecStatus],[isTe?"బ్యాంక్ రుణం":"Bank Loan",record.bankLoan],[isTe?"కోర్టు కేసు":"Court Case",record.courtCase]]],
-          ].map(([title,icon,rows])=>(
-            <div key={title} style={{background:"white",borderRadius:12,padding:14,marginBottom:10,border:"1px solid #E8ECF0"}}>
-              <div style={{fontWeight:700,fontSize:13,marginBottom:10,fontFamily:ff,color:FOREST}}>{icon} {title}</div>
-              {rows.map(([k,v])=>v&&(
-                <div key={k} style={{display:"flex",justifyContent:"space-between",paddingBottom:7,marginBottom:7,borderBottom:"1px solid #F5F5F5"}}>
-                  <span style={{fontSize:12,color:"#666",fontFamily:ff}}>{k}</span>
-                  <span style={{fontSize:12,fontWeight:600,color:String(v||"").includes("⚠")?ERR:"#1a1a1a",fontFamily:ff,textAlign:"right",maxWidth:"60%"}}>{v||"—"}</span>
-                </div>
-              ))}
-            </div>
-          ))}
-
-          {/* Previous Owners */}
-          {record.previousOwners?.length>0&&record.previousOwners[0]!=="Not provided"&&(
-            <div style={{background:"white",borderRadius:12,padding:14,marginBottom:10,border:"1px solid #E8ECF0"}}>
-              <div style={{fontWeight:700,fontSize:13,marginBottom:10,fontFamily:ff,color:FOREST}}>👥 {isTe?"గత యజమానులు":"Previous Owners"}</div>
-              {record.previousOwners.map((o,i)=>(
-                <div key={i} style={{display:"flex",alignItems:"center",gap:8,marginBottom:7}}>
-                  <div style={{width:8,height:8,borderRadius:"50%",background:o.toUpperCase().includes("UNKNOWN")?ERR:OK,flexShrink:0}}/>
-                  <span style={{fontSize:12,color:o.toUpperCase().includes("UNKNOWN")?ERR:"#1a1a1a",fontFamily:ff,fontWeight:o.toUpperCase().includes("UNKNOWN")?700:400}}>{o}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Boundaries */}
-          {(record.boundaries?.north||record.boundaries?.south)&&(
-            <div style={{background:"white",borderRadius:12,padding:14,marginBottom:10,border:"1px solid #E8ECF0"}}>
-              <div style={{fontWeight:700,fontSize:13,marginBottom:10,fontFamily:ff,color:FOREST}}>🧭 {isTe?"హద్దులు":"Boundaries"}</div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-                {[["north","↑ North"],["south","↓ South"],["east","→ East"],["west","← West"]].map(([d,l])=>(
-                  <div key={d} style={{background:"#F8F9FA",borderRadius:8,padding:"8px 10px"}}>
-                    <div style={{fontSize:10,color:"#888",fontWeight:700,marginBottom:2}}>{l}</div>
-                    <div style={{fontSize:11,fontFamily:ff}}>{record.boundaries[d]||"—"}</div>
-                  </div>
-                ))}
+              <label style={labelStyle}>{isTe?"EC స్థితి":"EC Status"}</label>
+              <input value={form.ecStatus} onChange={e=>up("ecStatus",e.target.value)} placeholder={isTe?"ఉదా: క్లియర్, రుణం ఉంది":"e.g. Clear, Loan exists"} style={inputStyle}/>
+              <label style={labelStyle}>{isTe?"బ్యాంక్ రుణం":"Bank Loan"}</label>
+              <select value={form.bankLoan} onChange={e=>up("bankLoan",e.target.value)} style={{...inputStyle}}>
+                <option value="No active loan">{isTe?"రుణం లేదు":"No active loan"}</option>
+                <option value="⚠ Loan active">{isTe?"⚠ రుణం ఉంది":"⚠ Loan active"}</option>
+                <option value="Unknown">{isTe?"తెలియదు":"Unknown"}</option>
+              </select>
+              <label style={labelStyle}>{isTe?"కోర్టు కేసు":"Court Case"}</label>
+              <select value={form.courtCase} onChange={e=>up("courtCase",e.target.value)} style={{...inputStyle}}>
+                <option value="No disputes">{isTe?"వివాదాలు లేవు":"No disputes"}</option>
+                <option value="⚠ Dispute pending">{isTe?"⚠ వివాదం పెండింగ్":"⚠ Dispute pending"}</option>
+                <option value="Unknown">{isTe?"తెలియదు":"Unknown"}</option>
+              </select>
+              <label style={labelStyle}>{isTe?"హద్దులు — ఉత్తరం":"Boundary — North"}</label>
+              <input value={form.northBoundary} onChange={e=>up("northBoundary",e.target.value)} placeholder={isTe?"ఉత్తర హద్దు":"North boundary"} style={inputStyle}/>
+              <label style={labelStyle}>{isTe?"హద్దులు — దక్షిణం":"Boundary — South"}</label>
+              <input value={form.southBoundary} onChange={e=>up("southBoundary",e.target.value)} placeholder={isTe?"దక్షిణ హద్దు":"South boundary"} style={inputStyle}/>
+              <label style={labelStyle}>{isTe?"హద్దులు — తూర్పు":"Boundary — East"}</label>
+              <input value={form.eastBoundary} onChange={e=>up("eastBoundary",e.target.value)} placeholder={isTe?"తూర్పు హద్దు":"East boundary"} style={inputStyle}/>
+              <label style={labelStyle}>{isTe?"హద్దులు — పడమర":"Boundary — West"}</label>
+              <input value={form.westBoundary} onChange={e=>up("westBoundary",e.target.value)} placeholder={isTe?"పడమర హద్దు":"West boundary"} style={inputStyle}/>
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={()=>setStep(2)} style={{flex:1,background:"white",color:FOREST,border:"2px solid "+FOREST,borderRadius:12,padding:"12px",cursor:"pointer",fontFamily:ff,fontWeight:600}}>← {isTe?"వెనక్కి":"Back"}</button>
+                <button onClick={()=>setStep(4)} style={{flex:2,background:"linear-gradient(135deg,"+FOREST+",#4A8B35)",color:"white",border:"none",borderRadius:12,padding:"12px",cursor:"pointer",fontFamily:ff,fontWeight:700}}>
+                  {isTe?"తదుపరి":"Next"} →
+                </button>
               </div>
             </div>
           )}
 
-          {/* Documents */}
-          {record.documents?.length>0&&(
-            <div style={{background:"white",borderRadius:12,padding:14,marginBottom:10,border:"1px solid #E8ECF0"}}>
-              <div style={{fontWeight:700,fontSize:13,marginBottom:10,fontFamily:ff,color:FOREST}}>📎 {isTe?"అప్‌లోడ్ చేసిన పత్రాలు":"Uploaded Documents"} ({record.documents.length})</div>
-              {record.documents.map((d,i)=>(
-                <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",background:"#F8F9FA",borderRadius:8,marginBottom:6}}>
-                  <span style={{fontSize:20}}>{d.type?.includes("pdf")?"📄":"🖼️"}</span>
-                  <div style={{flex:1}}>
-                    <div style={{fontSize:12,fontWeight:600,fontFamily:ff}}>{d.name}</div>
-                    <div style={{fontSize:10,color:"#888",fontFamily:ff}}>{(d.size/1024).toFixed(1)} KB</div>
-                  </div>
-                  <a href={d.data} download={d.name} style={{fontSize:11,color:"#1565C0",fontWeight:600,textDecoration:"none",fontFamily:ff}}>⬇️</a>
+          {/* Step 4 - Documents + Submit */}
+          {step===4&&(
+            <div>
+              <label style={labelStyle}>{isTe?"పత్రాలు అప్‌లోడ్ చేయండి":"Upload Documents"}</label>
+              <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png" onChange={handleDocUpload} style={{width:"100%",marginBottom:12,fontFamily:ff,fontSize:12}}/>
+              {docs.length>0&&(
+                <div style={{marginBottom:12}}>
+                  {docs.map((d,i)=>(
+                    <div key={i} style={{background:"white",borderRadius:8,padding:"8px 12px",marginBottom:6,fontSize:12,fontFamily:ff,border:"1px solid #C8E6C9",color:"#2D7A3A"}}>
+                      ✅ {d.name}
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          )}
-
-          {/* Fraud Words */}
-          {record.fraudWordsFound?.length>0&&(
-            <div style={{background:"#FFEBEE",borderRadius:12,padding:14,marginBottom:10,border:"1.5px solid #FFCDD2"}}>
-              <div style={{fontWeight:700,fontSize:13,marginBottom:8,fontFamily:ff,color:ERR}}>🚨 {isTe?"హెచ్చరిక పదాలు కనుగొన్నారు":"Warning Words Found"}</div>
-              <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-                {record.fraudWordsFound.map((w,i)=>(<span key={i} style={{background:"white",color:ERR,padding:"3px 10px",borderRadius:20,fontSize:11,fontWeight:700,border:"1px solid #FFCDD2",fontFamily:ff}}>{w.toUpperCase()}</span>))}
+              )}
+              <label style={labelStyle}>{isTe?"గమనికలు":"Notes"}</label>
+              <textarea value={form.notes} onChange={e=>up("notes",e.target.value)} placeholder={isTe?"అదనపు వివరాలు...":"Additional notes..."} style={{...inputStyle,height:80,resize:"none"}}/>
+              <div style={{background:"#E8F5E9",border:"1px solid #2D7A3A",borderRadius:10,padding:12,marginBottom:12}}>
+                <div style={{fontWeight:700,fontSize:12,color:FOREST,fontFamily:ff}}>📊 {isTe?"సేవ్ చేసిన తర్వాత:":"After saving:"}</div>
+                <div style={{fontSize:12,color:"#555",fontFamily:ff,marginTop:4}}>{isTe?"రిస్క్ స్కోర్ ఆటోమేటిక్‌గా లెక్కించబడుతుంది మరియు రిపోర్ట్ చూపిస్తారు!":"Risk score calculated automatically and report shown instantly!"}</div>
+              </div>
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={()=>setStep(3)} style={{flex:1,background:"white",color:FOREST,border:"2px solid "+FOREST,borderRadius:12,padding:"13px",cursor:"pointer",fontFamily:ff,fontWeight:600,fontSize:14}}>← {isTe?"వెనక్కి":"Back"}</button>
+                <button onClick={handleSubmit} style={{flex:2,background:"linear-gradient(135deg,"+FOREST+",#4A8B35)",color:"white",border:"none",borderRadius:12,padding:"13px",cursor:"pointer",fontFamily:ff,fontWeight:800,fontSize:14}}>
+                  ✅ {isTe?"రికార్డు సేవ్ చేయి & రిపోర్ట్ చూడు":"Save & View Report"}
+                </button>
               </div>
             </div>
           )}
-
-          {/* Download Button */}
-          <button onClick={()=>onDownload(record)} style={{width:"100%",background:"linear-gradient(135deg,#1a3a10,"+FOREST+")",color:"white",border:"none",padding:"14px",borderRadius:12,fontFamily:ff,fontWeight:700,fontSize:15,cursor:"pointer",marginBottom:10}}>
-            📥 {isTe?"రిపోర్ట్ డౌన్‌లోడ్ చేయండి":"Download Complete Report"}
-          </button>
-          <button onClick={()=>window.open("https://meebhoomi.ap.gov.in","_blank")} style={{width:"100%",background:"#E3F2FD",color:"#1565C0",border:"1.5px solid #90CAF9",padding:"12px",borderRadius:10,fontFamily:ff,fontWeight:600,fontSize:13,cursor:"pointer"}}>
-            🌐 {isTe?"MeeBhoomi లో ధృవీకరించండి":"Verify on MeeBhoomi"}
-          </button>
         </div>
       </div>
     </div>
@@ -1197,101 +1137,72 @@ function RecordDetail({record,onClose,onDownload}){
 }
 
 function Dashboard({user,onLogout}){
-  const {isTe}=useLang();
+  const {isTe,lang,setLang}=useLang();
+  const t=(k)=>({fieldScan:isTe?"భూమి స్కాన్":"Field Scan",documents:isTe?"పత్రాలు":"Documents",risk:isTe?"రిస్క్ విశ్లేషణ":"Risk Analysis",records:isTe?"నా రికార్డులు":"My Records",satView:isTe?"శాటిలైట్ వ్యూ":"Satellite View",stats:isTe?"LandCheck గణాంకాలు":"LandCheck Stats",verifiedLands:isTe?"వేరిఫై చేసిన భూములు":"Verified Lands",fraudsCaught:isTe?"మోసాలు గుర్తించారు":"Frauds Caught",farmersHelped:isTe?"రైతులకు సహాయం":"Farmers Helped",welcome:isTe?"నమస్కారం":"Welcome",logout:isTe?"లాగౌట్":"Logout"})[k]||k;
   const [showScanner,setShowScanner]=useState(false);
   const [showChecklist,setShowChecklist]=useState(false);
   const [showFraud,setShowFraud]=useState(false);
   const [showAddRecord,setShowAddRecord]=useState(false);
   const [records,setRecords]=useState([]);
-  const [selectedRecord,setSelectedRecord]=useState(null);
-  const [activeTab,setActiveTab]=useState("home");
+  const [viewRecord,setViewRecord]=useState(null);
   const ff=isTe?"'Noto Sans Telugu',sans-serif":"'Instrument Sans',sans-serif";
-
   const addRecord=(r)=>setRecords(prev=>[r,...prev]);
-
-  const downloadFullReport=(record)=>{
-    const date=new Date().toLocaleDateString("en-IN");
-    const rc2={Low:"#2D7A3A",Medium:"#C8760C",High:"#C0392B"};
-    const rs=record.riskSummary||{riskLevel:"Low",riskScore:0};
-    const html="<!DOCTYPE html><html><head><meta charset='UTF-8'><title>LandCheck Report</title><style>body{font-family:Arial,sans-serif;background:#F5F0E8;padding:20px}.page{background:white;max-width:800px;margin:0 auto;border-radius:16px;overflow:hidden}.header{background:#2D5A1E;padding:28px 32px;color:white}.risk{background:"+rc2[rs.riskLevel]+";padding:20px 32px;color:white;display:flex;justify-content:space-between}.content{padding:28px 32px}.section{margin-bottom:20px;border:1px solid #E8ECF0;border-radius:12px}.sec-title{background:#F8F9FA;padding:12px 16px;font-weight:700;color:#2D5A1E}.row{display:flex;justify-content:space-between;padding:10px 16px;border-bottom:1px solid #F5F5F5}.footer{background:#F8F9FA;padding:16px 32px;display:flex;justify-content:space-between;font-size:11px;color:#888}.disclaimer{background:#FFF8E1;border:1px solid #FFB300;border-radius:10px;padding:14px;margin:16px 0;font-size:11px;color:#E65100}</style></head><body><div class='page'><div class='header'><div style='font-size:32px'>🌾</div><div style='font-size:24px;font-weight:900'>LandCheck Verification Report</div><div style='opacity:.8'>Generated on "+date+"</div></div><div class='risk'><div><div>RISK LEVEL</div><div style='font-size:22px;font-weight:900'>"+(rs.riskLevel==="Low"?"LOW RISK ✅":rs.riskLevel==="High"?"HIGH RISK 🚨":"MEDIUM RISK ⚠️")+"</div></div><div style='font-size:48px;font-weight:900'>"+rs.riskScore+"<span style='font-size:16px'>/100</span></div></div><div class='content'><div class='section'><div class='sec-title'>📋 Land Details</div>"
-    +[["Survey Number",record.surveyNumber],["Owner Name",record.ownerName],["Village",record.village],["Mandal",record.mandal],["District",record.district],["Land Type",record.landType],["Extent",record.extentAcres+" Acres"],["Market Value",record.marketValue||"—"],["Date",record.createdAt]].map(([k,v])=>"<div class='row'><span style='color:#666'>"+k+"</span><span style='font-weight:600'>"+v+"</span></div>").join("")
-    +"</div><div class='section'><div class='sec-title'>⚖️ Legal Status</div>"
-    +[["EC Status",record.ecStatus],["Bank Loan",record.bankLoan],["Court Case",record.courtCase]].map(([k,v])=>"<div class='row'><span style='color:#666'>"+k+"</span><span style='font-weight:600;color:"+(String(v||"").includes("⚠")?"#C0392B":"#1a1a1a")+"'>"+v+"</span></div>").join("")
-    +"</div>"
-    +(record.fraudWordsFound?.length>0?"<div style='background:#FFEBEE;border:1px solid #FFCDD2;border-radius:12px;padding:14px;margin:16px 0'><div style='font-weight:700;color:#C0392B;margin-bottom:8px'>🚨 Warning Words: "+record.fraudWordsFound.join(", ").toUpperCase()+"</div></div>":"")
-    +"<div class='disclaimer'>⚖️ <strong>Disclaimer:</strong> This report is for informational purposes only. Always consult a qualified lawyer before land decisions.</div></div><div class='footer'><div>🌾 LandCheck — Verify Land. Stop Fraud.</div><div>Report ID: LC-"+record.id+" | "+date+"</div></div></div></body></html>";
-    const blob=new Blob([html],{type:"text/html"});
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement("a");
-    const w=window.open("","_blank");
-    if(w){ w.document.write(html); w.document.close(); }
-    else {
-      a.href=url; a.download="LandCheck-Report.html";
-      a.style.display="none"; document.body.appendChild(a);
-      a.click(); setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); },1000);
-    }
-  };
 
   const features=[
     {icon:"📍",label:isTe?"భూమి స్కాన్":"Field Scan",sub:isTe?"GPS తో తక్షణ స్కాన్":"GPS instant scan",action:()=>setShowScanner(true),highlight:true},
     {icon:"➕",label:isTe?"రికార్డు జోడించు":"Add Record",sub:isTe?"భూమి రికార్డు జోడించు":"Add land record",action:()=>setShowAddRecord(true),highlight:true},
-    {icon:"📋",label:isTe?"డాక్ చెక్‌లిస్ట్":"Doc Checklist",sub:isTe?"8 పత్రాలు":"8 documents",action:()=>setShowChecklist(true)},
-    {icon:"🔍",label:isTe?"మోసం గుర్తింపు":"Fraud Detector",sub:isTe?"పత్రం విశ్లేషించండి":"Analyze text",action:()=>setShowFraud(true)},
+    {icon:"📋",label:isTe?"పత్రాల చెక్‌లిస్ట్":"Doc Checklist",sub:isTe?"8 పత్రాలు తనిఖీ":"Check 8 documents",action:()=>setShowChecklist(true)},
+    {icon:"🔍",label:isTe?"మోసం గుర్తింపు":"Fraud Detector",sub:isTe?"పత్రం విశ్లేషించండి":"Analyze document",action:()=>setShowFraud(true)},
     {icon:"🌐",label:"MeeBhoomi",sub:isTe?"నేరుగా తెరవండి":"Open directly",action:()=>window.open("https://meebhoomi.ap.gov.in","_blank")},
-    {icon:"🛰️",label:isTe?"శాటిలైట్ వ్యూ":"Satellite View",sub:"Google Maps",action:()=>window.open("https://maps.google.com","_blank")},
+    {icon:"🛰️",label:t("satView"),sub:"Google Maps",action:()=>window.open("https://maps.google.com","_blank")},
   ];
 
   return(
-    <div style={{minHeight:"100vh",background:CREAM}}>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}} *{box-sizing:border-box}`}</style>
+    <div style={{minHeight:"100vh",background:"#F5F0E8",fontFamily:ff}}>
       {showScanner&&<LandScanner onClose={()=>setShowScanner(false)}/>}
       {showChecklist&&<DocChecklist onClose={()=>setShowChecklist(false)}/>}
       {showFraud&&<FraudDetector onClose={()=>setShowFraud(false)}/>}
       {showAddRecord&&<AddRecordModal onClose={()=>setShowAddRecord(false)} onAdd={addRecord}/>}
-      {selectedRecord&&<RecordDetail record={selectedRecord} onClose={()=>setSelectedRecord(null)} onDownload={downloadFullReport}/>}
+      {viewRecord&&<ReportView record={viewRecord} onClose={()=>setViewRecord(null)}/>}
 
-      {/* Header */}
-      <div style={{background:FOREST,padding:"16px 20px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-        <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <div style={{fontSize:28}}>🌾</div>
+      <div style={{background:"linear-gradient(135deg,#2D5A1E,#1a3a10)",padding:"16px 20px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <div style={{fontSize:30}}>🌾</div>
           <div>
             <div style={{fontWeight:800,color:"white",fontSize:18,fontFamily:ff}}>LandCheck</div>
-            <div style={{fontSize:11,color:"rgba(255,255,255,.7)",fontFamily:ff}}>{isTe?"నమస్కారం,":"Welcome,"} {user?.fullName||"User"}!</div>
+            <div style={{fontSize:11,color:"rgba(255,255,255,.7)",fontFamily:ff}}>{t("welcome")}, {user?.fullName||user?.email?.split("@")[0]||"User"}!</div>
           </div>
         </div>
-        <button onClick={onLogout} style={{background:"rgba(255,255,255,.15)",border:"none",color:"white",padding:"8px 14px",borderRadius:8,cursor:"pointer",fontFamily:ff,fontSize:12}}>
-          {isTe?"లాగౌట్":"Logout"}
-        </button>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          <button onClick={()=>setLang(l=>l==="en"?"te":"en")} style={{background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.2)",color:"white",padding:"5px 12px",borderRadius:20,cursor:"pointer",fontSize:11,fontWeight:600}}>{lang==="en"?"తెలుగు":"EN"}</button>
+          <button onClick={onLogout} style={{background:"rgba(255,255,255,.15)",border:"none",color:"white",padding:"8px 14px",borderRadius:8,cursor:"pointer",fontFamily:ff,fontSize:12,fontWeight:600}}>{t("logout")}</button>
+        </div>
       </div>
 
-      <div style={{padding:20}}>
-        {/* Hero */}
-        <div style={{background:`linear-gradient(135deg,${FOREST},#4A8B35)`,borderRadius:16,padding:20,marginBottom:20,color:"white"}}>
-          <div style={{fontSize:13,opacity:.85,fontFamily:ff,marginBottom:4}}>{isTe?"మీ భూమి సురక్షితంగా ఉందా?":"Is your land safe?"}</div>
-          <div style={{fontWeight:800,fontSize:20,fontFamily:ff,marginBottom:12}}>{isTe?"ఇప్పుడే తనిఖీ చేయండి!":"Check it now!"}</div>
-          <button onClick={()=>setShowScanner(true)} style={{background:GOLD,color:FOREST,border:"none",borderRadius:10,padding:"10px 20px",cursor:"pointer",fontFamily:ff,fontWeight:700,fontSize:14}}>
-            📍 {isTe?"GPS స్కాన్ ప్రారంభించండి":"Start GPS Scan"}
-          </button>
+      <div style={{padding:20,maxWidth:520,margin:"0 auto"}}>
+        <div style={{background:"linear-gradient(135deg,#2D5A1E,#4A8B35)",borderRadius:18,padding:22,marginBottom:20,color:"white",position:"relative",overflow:"hidden"}}>
+          <div style={{position:"absolute",right:-10,top:-10,fontSize:80,opacity:.15}}>🌾</div>
+          <div style={{fontSize:13,opacity:.85,fontFamily:ff,marginBottom:4}}>{isTe?"మీ భూమి సురక్షితంగా ఉందా?":"Is your land safe from fraud?"}</div>
+          <div style={{fontWeight:800,fontSize:20,fontFamily:ff,marginBottom:14}}>{isTe?"ఇప్పుడే తనిఖీ చేయండి!":"Check it now!"}</div>
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={()=>setShowScanner(true)} style={{background:"#C8860C",color:"#2D5A1E",border:"none",borderRadius:10,padding:"10px 16px",cursor:"pointer",fontFamily:ff,fontWeight:800,fontSize:13}}>📍 GPS Scan</button>
+            <button onClick={()=>setShowAddRecord(true)} style={{background:"rgba(255,255,255,.2)",color:"white",border:"1px solid rgba(255,255,255,.4)",borderRadius:10,padding:"10px 16px",cursor:"pointer",fontFamily:ff,fontWeight:700,fontSize:13}}>➕ {isTe?"రికార్డు జోడించు":"Add Record"}</button>
+          </div>
         </div>
 
-        {/* Features Grid */}
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:20}}>
           {features.map((f,i)=>(
-            <button key={i} onClick={f.action} style={{background:"white",border:f.highlight?`2px solid ${GOLD}`:"1.5px solid #E0E8D8",borderRadius:14,padding:"16px 14px",cursor:"pointer",textAlign:"left",boxShadow:f.highlight?"0 4px 16px rgba(200,134,12,.2)":"none"}}>
-              <div style={{fontSize:28,marginBottom:8}}>{f.icon}</div>
-              <div style={{fontWeight:700,fontSize:13,color:"#1a1a1a",fontFamily:ff,marginBottom:3}}>{f.label}</div>
-              <div style={{fontSize:11,color:"#666",fontFamily:ff}}>{f.sub}</div>
-              {f.highlight&&<div style={{marginTop:8,background:GOLD,color:FOREST,padding:"2px 8px",borderRadius:20,fontSize:10,fontWeight:700,display:"inline-block"}}>{isTe?"పరిచయం":"FEATURED"}</div>}
+            <button key={i} onClick={f.action} style={{background:"white",border:f.highlight?"2px solid #C8860C":"1.5px solid #E0E8D8",borderRadius:16,padding:"18px 14px",cursor:"pointer",textAlign:"left",boxShadow:f.highlight?"0 4px 20px rgba(200,134,12,.2)":"0 2px 8px rgba(0,0,0,.05)"}}>
+              <div style={{fontSize:30,marginBottom:10}}>{f.icon}</div>
+              <div style={{fontWeight:700,fontSize:13,color:"#1a1a1a",fontFamily:ff,marginBottom:4}}>{f.label}</div>
+              <div style={{fontSize:11,color:"#888",fontFamily:ff}}>{f.sub}</div>
             </button>
           ))}
         </div>
 
-        {/* My Records */}
         {records.length>0&&(
-          <div style={{background:"white",borderRadius:14,padding:16,marginTop:16,border:"1px solid #E0E8D8"}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-              <div style={{fontWeight:700,fontSize:14,fontFamily:ff,color:FOREST}}>📊 {isTe?"నా రికార్డులు":"My Records"} ({records.length})</div>
-            </div>
+          <div style={{background:"white",borderRadius:14,padding:16,marginBottom:16,border:"1px solid #E0E8D8"}}>
+            <div style={{fontWeight:700,fontSize:14,fontFamily:ff,marginBottom:12,color:"#2D5A1E"}}>📊 {isTe?"నా రికార్డులు":"My Records"} ({records.length})</div>
             {records.map((r,i)=>(
               <div key={i} style={{background:"#F8F9FA",borderRadius:10,padding:"12px 14px",marginBottom:8,border:"1px solid #E0E8D8"}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
@@ -1301,24 +1212,19 @@ function Dashboard({user,onLogout}){
                   </div>
                 </div>
                 <div style={{fontSize:11,color:"#666",fontFamily:ff,marginBottom:8}}>📋 {r.surveyNumber} • {r.village} • {r.extentAcres} Acres</div>
-                <button onClick={()=>downloadFullReport(r)} style={{background:"linear-gradient(135deg,"+FOREST+",#4A8B35)",color:"white",border:"none",borderRadius:8,padding:"7px 14px",cursor:"pointer",fontFamily:ff,fontWeight:600,fontSize:12}}>
-                  📥 {isTe?"రిపోర్ట్ డౌన్‌లోడ్":"Download Report"}
+                <button onClick={()=>setViewRecord(r)} style={{background:"linear-gradient(135deg,#2D5A1E,#4A8B35)",color:"white",border:"none",borderRadius:8,padding:"7px 14px",cursor:"pointer",fontFamily:ff,fontWeight:600,fontSize:12}}>
+                  📄 {isTe?"రిపోర్ట్ చూడు":"View Report"}
                 </button>
               </div>
             ))}
           </div>
         )}
 
-        {/* Stats */}
-        <div style={{background:"white",borderRadius:14,padding:16,marginTop:16,border:"1px solid #E0E8D8"}}>
-          <div style={{fontWeight:700,fontSize:14,fontFamily:ff,marginBottom:12}}>📊 {isTe?"LandCheck గణాంకాలు":"LandCheck Stats"}</div>
+        <div style={{background:"linear-gradient(135deg,#0D1F0A,#1a3a10)",borderRadius:16,padding:20,color:"white"}}>
+          <div style={{fontWeight:700,fontSize:14,fontFamily:ff,marginBottom:16}}>📊 {t("stats")}</div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,textAlign:"center"}}>
-            {[[isTe?"వేరిఫై చేసిన భూములు":"Verified Lands","1,247","🌾"],[isTe?"మోసాలు గుర్తించారు":"Frauds Caught","89","🚨"],[isTe?"రైతులకు సహాయం":"Farmers Helped","3,421","👨‍🌾"]].map(([label,val,icon])=>(
-              <div key={label}>
-                <div style={{fontSize:22}}>{icon}</div>
-                <div style={{fontWeight:800,fontSize:18,color:FOREST,fontFamily:ff}}>{val}</div>
-                <div style={{fontSize:10,color:"#666",fontFamily:ff}}>{label}</div>
-              </div>
+            {[[t("verifiedLands"),"1,247","🌾"],[t("fraudsCaught"),"89","🚨"],[t("farmersHelped"),"3,421","👨‍🌾"]].map(([label,val,icon])=>(
+              <div key={label}><div style={{fontSize:24,marginBottom:4}}>{icon}</div><div style={{fontWeight:800,fontSize:20,color:"#C8860C",fontFamily:ff}}>{val}</div><div style={{fontSize:10,color:"rgba(255,255,255,.6)",fontFamily:ff,lineHeight:1.3}}>{label}</div></div>
             ))}
           </div>
         </div>
@@ -1332,6 +1238,7 @@ function AppInner(){
   const [user,setUser]=useState(null);
   const [lang,setLang]=useState("en");
   const isTe=lang==="te";
+  const t=(key)=>({appName:"LandCheck",tagline:isTe?"భూమి ధృవీకరించండి":"Verify Land. Stop Fraud.",getStarted:isTe?"ఉచితంగా ప్రారంభించండి":"Get Started Free",login:isTe?"లాగిన్":"Login",register:isTe?"నమోదు":"Register"})[key]||key;
 
   useEffect(()=>{
     const u=localStorage.getItem("lc_user");
@@ -1342,17 +1249,9 @@ function AppInner(){
   const handleLogout=()=>{localStorage.removeItem("lc_token");localStorage.removeItem("lc_user");setUser(null);setScreen("login");};
 
   return(
-    <LangCtx.Provider value={{lang,isTe,setLang}}>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Instrument Sans',sans-serif;background:${CREAM}}`}</style>
-      {/* Language toggle */}
-      {screen!=="dashboard"&&(
-        <div style={{position:"fixed",top:10,right:10,zIndex:999}}>
-          <button onClick={()=>setLang(l=>l==="en"?"te":"en")} style={{background:"rgba(255,255,255,.9)",border:`1px solid ${GOLD}`,borderRadius:20,padding:"4px 12px",cursor:"pointer",fontSize:12,fontWeight:600,color:FOREST}}>
-            {isTe?"EN":"తెలుగు"}
-          </button>
-        </div>
-      )}
-      {screen==="login"&&<LoginPage onLogin={handleLogin} onRegister={()=>setScreen("register")}/>}
+    <LangCtx.Provider value={{lang,isTe,setLang,t}}>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Instrument Sans',sans-serif;background:#F5F0E8}button:active{transform:scale(.97)}`}</style>
+      {screen==="login"&&<LoginPage onLogin={handleLogin} onRegister={()=>setScreen("register")} onBack={()=>setScreen("login")}/>}
       {screen==="register"&&<RegisterPage onBack={()=>setScreen("login")}/>}
       {screen==="dashboard"&&<Dashboard user={user} onLogout={handleLogout}/>}
     </LangCtx.Provider>
